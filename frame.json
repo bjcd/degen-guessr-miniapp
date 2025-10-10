@@ -1,0 +1,50 @@
+{
+    "name": "DEGEN Guess 1-100",
+    "description": "A fun and fair guessing game using $DEGEN token on Base network. Guess a number between 1-100 and win the entire pot!",
+    "icon": "https://degen-guessr.vercel.app/icon.png",
+    "url": "https://degen-guessr.vercel.app",
+    "permissions": [
+        "wallet",
+        "user"
+    ],
+    "version": "1.0.0",
+    "author": "DEGEN Guess Team",
+    "category": "games",
+    "tags": [
+        "game",
+        "degen",
+        "base",
+        "vrf",
+        "guessing"
+    ],
+    "screenshots": [
+        "https://degen-guessr.vercel.app/screenshot1.png",
+        "https://degen-guessr.vercel.app/screenshot2.png"
+    ],
+    "social": {
+        "twitter": "@degen_guess",
+        "discord": "https://discord.gg/degen-guess"
+    },
+    "contracts": {
+        "base": {
+            "address": "CONTRACT_ADDRESS_PLACEHOLDER",
+            "abi": "CONTRACT_ABI_PLACEHOLDER"
+        }
+    },
+    "tokens": {
+        "degen": {
+            "address": "0x4ed4E862860beD51a9570b96d89aF5E1B0Efefed",
+            "symbol": "DEGEN",
+            "decimals": 18
+        }
+    },
+    "networks": [
+        "base"
+    ],
+    "features": [
+        "wallet_connect",
+        "token_transfer",
+        "random_number_generation",
+        "real_time_updates"
+    ]
+}

@@ -1,0 +1,28 @@
+{
+    "frame": {
+        "version": "1",
+        "name": "DEGEN Guess 1-100",
+        "subtitle": "A fun number guessing game",
+        "description": "Guess a number between 1 and 100 and win the entire pot! Each guess costs 100 $DEGEN. Uses Chainlink VRF for provably fair randomness.",
+        "iconUrl": "https://degen-guessr.vercel.app/icon.png",
+        "homeUrl": "https://degen-guessr.vercel.app",
+        "splashImageUrl": "https://degen-guessr.vercel.app/splash.png",
+        "splashBackgroundColor": "#fbbf24",
+        "heroImageUrl": "https://degen-guessr.vercel.app/hero.png",
+        "tagline": "Test your luck and win big!",
+        "screenshotUrls": [
+            "https://degen-guessr.vercel.app/screenshot1.png",
+            "https://degen-guessr.vercel.app/screenshot2.png"
+        ],
+        "primaryCategory": "games",
+        "tags": [
+            "guessing",
+            "fun",
+            "onchain",
+            "degen",
+            "base",
+            "vrf"
+        ],
+        "webhookUrl": "https://degen-guessr.vercel.app/api/webhook"
+    }
+}
