@@ -133,7 +133,11 @@ All colors MUST be HSL.
   }
 
   .btn-primary {
-    @apply bg-gradient-to-r from-primary to-secondary hover:from-primary-glow hover:to-secondary-glow text-white font-black text-lg transition-all duration-300 neon-button rounded-2xl flex items-center justify-center gap-3 py-4 px-8;
+    @apply bg-gradient-to-r from-primary to-secondary text-white font-black text-lg transition-all duration-300 neon-button rounded-2xl flex items-center justify-center gap-3 py-4 px-8;
+  }
+
+  .btn-primary:hover {
+    @apply from-primary-glow to-secondary-glow;
   }
 
   .btn-secondary {

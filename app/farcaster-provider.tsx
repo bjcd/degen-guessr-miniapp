@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { sdk } from '@farcaster/miniapp-sdk';
 
 interface FarcasterUser {
     fid: number;
@@ -15,6 +16,7 @@ interface FarcasterContextType {
     signIn: () => Promise<void>;
     signOut: () => Promise<void>;
     getEthereumProvider: () => Promise<any>;
+    isFarcasterEnvironment: boolean;
 }
 
 const FarcasterContext = createContext<FarcasterContextType | undefined>(undefined);
@@ -22,20 +24,27 @@ const FarcasterContext = createContext<FarcasterContextType | undefined>(undefin
 export function FarcasterProvider({ children }: { children: ReactNode }) {
     const [isReady, setIsReady] = useState(false);
     const [user, setUser] = useState<FarcasterUser | null>(null);
+    const [isFarcasterEnvironment, setIsFarcasterEnvironment] = useState(false);
 
     useEffect(() => {
-        // Initialize Farcaster SDK
         const initFarcaster = async () => {
             try {
                 // Check if we're in a Farcaster environment
-                if (typeof window !== 'undefined' && (window as any).farcaster) {
-                    // Call ready() to hide splash screen
-                    await (window as any).farcaster.actions.ready();
-                    setIsReady(true);
-                } else {
-                    // Fallback for development
-                    setIsReady(true);
+                const isInFarcaster = typeof window !== 'undefined' && 
+                    (window.location !== window.parent.location || 
+                     window.navigator.userAgent.includes('Farcaster') ||
+                     window.location.search.includes('farcaster') ||
+                     document.referrer.includes('farcaster') ||
+                     (window as any).farcaster);
+
+                setIsFarcasterEnvironment(isInFarcaster);
+
+                if (isInFarcaster) {
+                    // Initialize Farcaster SDK
+                    await sdk.actions.ready();
                 }
+                
+                setIsReady(true);
             } catch (error) {
                 console.error('Failed to initialize Farcaster SDK:', error);
                 setIsReady(true); // Still show the app
@@ -47,16 +56,25 @@ export function FarcasterProvider({ children }: { children: ReactNode }) {
 
     const signIn = async () => {
         try {
-            if (typeof window !== 'undefined' && (window as any).farcaster) {
-                const result = await (window as any).farcaster.actions.signin();
-                setUser(result);
+            if (isFarcasterEnvironment) {
+                // Use real Farcaster authentication
+                const { token } = await sdk.quickAuth.getToken();
+                console.log('Farcaster token:', token);
+                
+                // For now, mock user data - in production you'd validate the token
+                setUser({
+                    fid: 12345,
+                    username: 'farcasteruser',
+                    displayName: 'Farcaster User',
+                    pfpUrl: 'https://via.placeholder.com/150'
+                });
             } else {
                 // Mock sign in for development
                 setUser({
                     fid: 12345,
-                    username: 'testuser',
-                    displayName: 'Test User',
-                    pfpUrl: 'https://via.placeholder.com/100',
+                    username: 'degenuser',
+                    displayName: 'Degen User',
+                    pfpUrl: 'https://via.placeholder.com/150'
                 });
             }
         } catch (error) {
@@ -66,9 +84,6 @@ export function FarcasterProvider({ children }: { children: ReactNode }) {
 
     const signOut = async () => {
         try {
-            if (typeof window !== 'undefined' && (window as any).farcaster) {
-                await (window as any).farcaster.actions.signout();
-            }
             setUser(null);
         } catch (error) {
             console.error('Sign out failed:', error);
@@ -77,11 +92,17 @@ export function FarcasterProvider({ children }: { children: ReactNode }) {
 
     const getEthereumProvider = async () => {
         try {
-            if (typeof window !== 'undefined' && (window as any).farcaster) {
-                return await (window as any).farcaster.wallet.getEthereumProvider();
+            if (isFarcasterEnvironment && typeof window !== 'undefined') {
+                // Try to get the real Ethereum provider from Farcaster
+                return (window as any).ethereum || (window as any).farcaster?.ethereum;
             } else {
                 // Fallback for development
-                return (window as any).ethereum;
+                return (window as any).ethereum || {
+                    request: async ({ method, params }: { method: string; params?: any[] }) => {
+                        console.log('Mock provider request:', method, params);
+                        return [];
+                    }
+                };
             }
         } catch (error) {
             console.error('Failed to get Ethereum provider:', error);
@@ -97,6 +118,7 @@ export function FarcasterProvider({ children }: { children: ReactNode }) {
                 signIn,
                 signOut,
                 getEthereumProvider,
+                isFarcasterEnvironment,
             }}
         >
             {children}

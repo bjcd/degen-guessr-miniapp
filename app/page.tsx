@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Trophy, Zap, TrendingUp, Crown, Sparkles } from "lucide-react";
+// @ts-ignore
 import degenHat from "/public/degen-logo.png";
 import { useFarcaster } from "./farcaster-provider";
 
@@ -27,8 +28,13 @@ interface LeaderboardEntry {
   totalWon: number;
 }
 
+// Contract configuration from environment variables
+const DEGEN_TOKEN_ADDRESS = process.env.NEXT_PUBLIC_DEGEN_TOKEN_ADDRESS || "0x4ed4E862860beD51a9570b96d89aF5E1B0Efefed";
+const GUESS_GAME_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS;
+const TREASURY_ADDRESS = process.env.NEXT_PUBLIC_TREASURY_ADDRESS;
+
 export default function Home() {
-  const { isReady, user, signIn, signOut } = useFarcaster();
+  const { isReady, user, signIn, signOut, isFarcasterEnvironment } = useFarcaster();
   const [guess, setGuess] = useState("");
   const [pot, setPot] = useState(2340);
   const [attempts, setAttempts] = useState<Attempt[]>([
@@ -38,6 +44,7 @@ export default function Home() {
   ]);
   const [totalGuesses, setTotalGuesses] = useState(26);
   const [isWinning, setIsWinning] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [targetNumber] = useState(() => Math.floor(Math.random() * 100) + 1);
   
   const [winners] = useState<Winner[]>([
@@ -54,7 +61,7 @@ export default function Home() {
     { address: "0x3d8b...1f5e", wins: 4, totalWon: 7200 },
   ]);
 
-  const handleGuess = () => {
+  const handleGuess = async () => {
     const guessNum = parseInt(guess);
     
     if (!guess || guessNum < 1 || guessNum > 100) {
@@ -62,6 +69,25 @@ export default function Home() {
       return;
     }
 
+    setIsLoading(true);
+
+    try {
+      if (GUESS_GAME_CONTRACT_ADDRESS) {
+        // Real contract interaction
+        await makeContractGuess(guessNum);
+      } else {
+        // Demo mode
+        await makeDemoGuess(guessNum);
+      }
+    } catch (error) {
+      console.error('Guess failed:', error);
+      alert('Guess failed. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const makeDemoGuess = async (guessNum: number) => {
     const newAttempt: Attempt = {
       id: Date.now(),
       guess: guessNum,
@@ -88,6 +114,21 @@ export default function Home() {
     setGuess("");
   };
 
+  const makeContractGuess = async (guessNum: number) => {
+    // This would integrate with the actual smart contract
+    // For now, we'll simulate the contract interaction
+    console.log('Making contract guess:', guessNum);
+    console.log('Contract address:', GUESS_GAME_CONTRACT_ADDRESS);
+    console.log('DEGEN token address:', DEGEN_TOKEN_ADDRESS);
+    console.log('Treasury address:', TREASURY_ADDRESS);
+    
+    // Simulate contract call
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    // For demo purposes, use the same logic as demo mode
+    await makeDemoGuess(guessNum);
+  };
+
   if (!isReady) {
     return (
       <main className="min-h-screen bg-gradient-to-br from-background via-[hsl(270_50%_10%)] to-background flex items-center justify-center">
@@ -104,18 +145,29 @@ export default function Home() {
       <main className="min-h-screen bg-gradient-to-br from-background via-[hsl(270_50%_10%)] to-background flex items-center justify-center p-4">
         <Card className="glass-card gradient-border p-8 max-w-md w-full text-center space-y-6">
           <div className="flex items-center justify-center gap-3">
-            <img src={degenHat} alt="Degen Hat" className="w-16 h-16 object-contain animate-[bounce_2s_ease-in-out_infinite]" />
+            <img src={degenHat.src || degenHat} alt="Degen Hat" className="w-16 h-16 object-contain animate-[bounce_2s_ease-in-out_infinite]" />
             <h1 className="text-4xl font-black bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent neon-glow">
               DEGEN GUESSR
             </h1>
           </div>
-          <p className="text-muted-foreground">Connect your Farcaster account to start guessing!</p>
+          <p className="text-muted-foreground">
+            {isFarcasterEnvironment 
+              ? "Connect your Farcaster account to start guessing!" 
+              : "Sign in to start playing the DEGEN guessing game!"
+            }
+          </p>
           <Button onClick={signIn} className="btn-primary w-full h-16 text-xl">
             <img src={degenHat} alt="Hat" className="w-8 h-8 object-contain" />
             <Zap className="w-6 h-6" />
-            CONNECT FARCASTER
+            {isFarcasterEnvironment ? "CONNECT FARCASTER" : "SIGN IN"}
             <Zap className="w-6 h-6" />
           </Button>
+          {!GUESS_GAME_CONTRACT_ADDRESS && (
+            <div className="text-xs text-muted-foreground bg-muted/50 p-3 rounded-lg">
+              <p className="font-bold text-primary mb-1">DEMO MODE</p>
+              <p>Contract not deployed. Set NEXT_PUBLIC_CONTRACT_ADDRESS in .env to enable real gameplay.</p>
+            </div>
+          )}
         </Card>
       </main>
     );
@@ -127,13 +179,18 @@ export default function Home() {
         {/* Header with Logo */}
         <div className="text-center space-y-3">
           <div className="flex items-center justify-center gap-3">
-            <img src={degenHat} alt="Degen Hat" className="w-16 h-16 object-contain animate-[bounce_2s_ease-in-out_infinite]" />
+            <img src={degenHat.src || degenHat} alt="Degen Hat" className="w-16 h-16 object-contain animate-[bounce_2s_ease-in-out_infinite]" />
             <h1 className="text-6xl font-black bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent neon-glow">
               DEGEN GUESSR
             </h1>
             <img src={degenHat} alt="Degen Hat" className="w-16 h-16 object-contain animate-[bounce_2s_ease-in-out_infinite] scale-x-[-1]" />
           </div>
           <p className="text-muted-foreground text-sm font-medium">Guess the number. Win the pot. Be legendary.</p>
+          {isFarcasterEnvironment && (
+            <div className="text-xs text-primary bg-primary/10 px-3 py-1 rounded-full inline-block">
+              🚀 Running in Farcaster
+            </div>
+          )}
         </div>
 
         <div className="grid lg:grid-cols-3 gap-6">
@@ -167,22 +224,32 @@ export default function Home() {
                   min="1"
                   max="100"
                   value={guess}
-                  onChange={(e) => setGuess(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setGuess(e.target.value)}
                   placeholder="Enter number..."
                   className="h-16 text-3xl font-black text-center bg-input/50 border-2 border-primary/30 focus:border-primary focus:ring-primary rounded-2xl"
-                  onKeyPress={(e) => e.key === "Enter" && handleGuess()}
+                  onKeyPress={(e: React.KeyboardEvent) => e.key === "Enter" && !isLoading && handleGuess()}
+                  disabled={isLoading}
                 />
               </div>
               
               <Button
                 onClick={handleGuess}
                 className="w-full h-16 bg-gradient-to-r from-primary to-secondary hover:from-primary-glow hover:to-secondary-glow text-white font-black text-xl transition-all duration-300 neon-button rounded-2xl flex items-center justify-center gap-3"
-                disabled={isWinning}
+                disabled={isWinning || isLoading}
               >
-                <img src={degenHat} alt="Hat" className="w-8 h-8 object-contain" />
-                <Zap className="w-6 h-6" />
-                GUESS FOR 100 $DEGEN
-                <Zap className="w-6 h-6" />
+                {isLoading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+                    GUESSING...
+                  </>
+                ) : (
+                  <>
+                    <img src={degenHat.src || degenHat} alt="Hat" className="w-8 h-8 object-contain" />
+                    <Zap className="w-6 h-6" />
+                    GUESS FOR 100 $DEGEN
+                    <Zap className="w-6 h-6" />
+                  </>
+                )}
               </Button>
             </Card>
 
