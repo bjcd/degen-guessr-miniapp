@@ -6,10 +6,7 @@
         "dev": "next dev",
         "build": "next build",
         "start": "next start",
-        "lint": "next lint",
-        "compile": "hardhat compile",
-        "deploy": "hardhat run scripts/deploy.js --network base",
-        "test": "hardhat test"
+        "lint": "next lint"
     },
     "dependencies": {
         "@farcaster/miniapp-sdk": "^0.1.0",
@@ -31,13 +28,9 @@
         "wagmi": "^2.0.0"
     },
     "devDependencies": {
-        "@chainlink/contracts": "^0.8.0",
-        "@nomicfoundation/hardhat-toolbox": "^2.0.0",
-        "@openzeppelin/contracts": "^4.9.0",
         "@types/node": "^20",
         "@types/react": "^18",
         "@types/react-dom": "^18",
-        "hardhat": "^2.19.0",
         "typescript": "^5"
     }
 }
