@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
-import GuessGameUSDCABI from '../contracts/GuessGameUSDC.json';
+import DegenGuessrABI from '../contracts/DegenGuessr.json';
 
 const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS;
 const TOKEN_ADDRESS = process.env.NEXT_PUBLIC_DEGEN_TOKEN_ADDRESS;
@@ -36,11 +36,11 @@ export function useContract(callbacks?: ContractCallbacks) {
 
                 if (accounts.length > 0) {
                     const signer = await provider.getSigner();
-                    const contract = new ethers.Contract(
-                        CONTRACT_ADDRESS!,
-                        GuessGameUSDCABI,
-                        signer
-                    );
+        const contract = new ethers.Contract(
+            CONTRACT_ADDRESS!,
+            DegenGuessrABI,
+            signer
+        );
 
                     setProvider(provider);
                     setSigner(signer);
