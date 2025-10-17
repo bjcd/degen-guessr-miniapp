@@ -1,0 +1,410 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { ethers } from 'ethers';
+import GuessGameUSDCABI from '../contracts/GuessGameUSDC.json';
+
+const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS;
+const TOKEN_ADDRESS = process.env.NEXT_PUBLIC_DEGEN_TOKEN_ADDRESS;
+
+console.log('Contract Address:', CONTRACT_ADDRESS);
+console.log('Token Address:', TOKEN_ADDRESS);
+
+interface ContractCallbacks {
+    onWin?: (guessedNumber: number, amount: string, winnerAddress: string, txHash: string) => void;
+    onMiss?: (guessedNumber: number, winningNumber: number) => void;
+    onGuessSubmitted?: () => void;
+    onError?: (message: string) => void;
+}
+
+export function useContract(callbacks?: ContractCallbacks) {
+    const [provider, setProvider] = useState<ethers.BrowserProvider | null>(null);
+    const [signer, setSigner] = useState<ethers.JsonRpcSigner | null>(null);
+    const [contract, setContract] = useState<ethers.Contract | null>(null);
+    const [account, setAccount] = useState<string | null>(null);
+    const [isConnected, setIsConnected] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+
+    // Connect wallet
+    const connectWallet = async () => {
+        try {
+            setIsLoading(true);
+
+            if (typeof window.ethereum !== 'undefined') {
+                const provider = new ethers.BrowserProvider(window.ethereum);
+                const accounts = await provider.send("eth_requestAccounts", []);
+
+                if (accounts.length > 0) {
+                    const signer = await provider.getSigner();
+                    const contract = new ethers.Contract(
+                        CONTRACT_ADDRESS!,
+                        GuessGameUSDCABI,
+                        signer
+                    );
+
+                    setProvider(provider);
+                    setSigner(signer);
+                    setContract(contract);
+                    setAccount(accounts[0]);
+                    setIsConnected(true);
+                }
+            } else {
+                if (callbacks?.onError) {
+                    callbacks.onError('Please install MetaMask!');
+                }
+            }
+        } catch (error) {
+            console.error('Error connecting wallet:', error);
+            if (callbacks?.onError) {
+                callbacks.onError('Failed to connect wallet');
+            }
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // Get current pot
+    const getPot = async (): Promise<number> => {
+        if (!contract || !provider) return 0;
+        try {
+            console.log('Getting pot from contract:', CONTRACT_ADDRESS);
+            const pot = await contract.getPot();
+            console.log('Raw pot value:', pot.toString());
+            // Contract stores pot in wei (18 decimals), convert to DEGEN
+            const formattedPot = Number(ethers.formatEther(pot));
+            console.log('Formatted pot value:', formattedPot);
+            return formattedPot;
+        } catch (error) {
+            console.error('Error getting pot:', error);
+            return 0;
+        }
+    };
+
+    // Get player wins
+    const getPlayerWins = async (playerAddress: string): Promise<number> => {
+        if (!contract || !provider) return 0;
+        try {
+            const wins = await contract.getPlayerWins(playerAddress);
+            // Dynamically get decimals from the token contract
+            const tokenContractForDecimals = new ethers.Contract(
+                TOKEN_ADDRESS!,
+                ['function decimals() view returns (uint8)'],
+                provider
+            );
+            const decimals = await tokenContractForDecimals.decimals();
+            return Number(ethers.formatUnits(wins, decimals));
+        } catch (error) {
+            console.error('Error getting player wins:', error);
+            return 0;
+        }
+    };
+
+    // Get total guesses for a player
+    const getPlayerGuesses = async (playerAddress: string): Promise<number> => {
+        if (!contract || !provider) return 0;
+        try {
+            const guesses = await contract.playerGuesses(playerAddress);
+            return Number(guesses);
+        } catch (error) {
+            console.error('Error getting player guesses:', error);
+            return 0;
+        }
+    };
+
+    // Get token balance
+    const getTokenBalance = async (): Promise<number> => {
+        if (!provider || !account) return 0;
+        try {
+            console.log('Getting token balance from:', TOKEN_ADDRESS);
+            const tokenContract = new ethers.Contract(
+                TOKEN_ADDRESS!,
+                [
+                    'function balanceOf(address owner) view returns (uint256)',
+                    'function decimals() view returns (uint8)',
+                    'function symbol() view returns (string)'
+                ],
+                provider
+            );
+
+            const balance = await tokenContract.balanceOf(account);
+            console.log('Raw balance:', balance.toString());
+            // Dynamically get decimals from the token contract
+            const decimals = await tokenContract.decimals();
+            console.log('Token decimals:', decimals);
+            const symbol = await tokenContract.symbol();
+            console.log('Token symbol:', symbol);
+            const formattedBalance = Number(ethers.formatUnits(balance, decimals));
+            console.log('Formatted balance:', formattedBalance);
+            return formattedBalance;
+        } catch (error) {
+            console.error('Error getting token balance:', error);
+            return 0;
+        }
+    };
+
+    // Approve tokens
+    const approveTokens = async (amount: string): Promise<boolean> => {
+        if (!signer || !account) return false;
+        try {
+            setIsLoading(true);
+
+            const tokenContract = new ethers.Contract(
+                TOKEN_ADDRESS!,
+                [
+                    'function approve(address spender, uint256 amount) returns (bool)',
+                    'function allowance(address owner, address spender) view returns (uint256)'
+                ],
+                signer
+            );
+
+            // Dynamically get decimals from the token contract
+            const tokenContractForDecimals = new ethers.Contract(
+                TOKEN_ADDRESS!,
+                ['function decimals() view returns (uint8)'],
+                provider!
+            );
+            const decimals = await tokenContractForDecimals.decimals();
+
+            const amountWei = ethers.parseUnits(amount, decimals);
+            console.log(`Approving ${amount} tokens (${amountWei.toString()} wei) with ${decimals} decimals`);
+
+            const tx = await tokenContract.approve(CONTRACT_ADDRESS!, amountWei);
+            console.log('Approval transaction sent, waiting for confirmation...');
+            const receipt = await tx.wait();
+            console.log('Approval transaction confirmed!');
+
+            // Verify approval
+            const allowance = await tokenContract.allowance(account, CONTRACT_ADDRESS!);
+            console.log(`Allowance after approval: ${allowance.toString()}`);
+
+            return true;
+        } catch (error) {
+            console.error('Error approving tokens:', error);
+            return false;
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // Make a guess (only after approval)
+    const makeGuess = async (number: number): Promise<boolean> => {
+        if (!contract || !account || !signer) return false;
+        try {
+            setIsLoading(true);
+
+            // Check if user has approved enough tokens
+            const tokenContract = new ethers.Contract(
+                TOKEN_ADDRESS!,
+                [
+                    'function allowance(address owner, address spender) view returns (uint256)',
+                    'function decimals() view returns (uint8)',
+                    'function balanceOf(address owner) view returns (uint256)'
+                ],
+                provider!
+            );
+
+            const decimals = await tokenContract.decimals();
+            const requiredAmount = 100 * (10 ** Number(decimals));
+            const allowance = await tokenContract.allowance(account, CONTRACT_ADDRESS!);
+            const userBalance = await tokenContract.balanceOf(account);
+
+            console.log('Required amount:', requiredAmount.toString());
+            console.log('Current allowance:', allowance.toString());
+            console.log('User balance:', userBalance.toString());
+            console.log('User has enough balance?', userBalance >= BigInt(requiredAmount));
+
+            if (allowance < BigInt(requiredAmount)) {
+                if (callbacks?.onError) {
+                    callbacks.onError('Please approve tokens first! You need to approve 100 DEGEN to the contract.');
+                }
+                setIsLoading(false);
+                return false;
+            }
+
+            // Check if contract is paused
+            const isPaused = await contract.paused();
+            console.log('Contract paused?', isPaused);
+
+            // Check contract's USDC balance
+            const contractBalance = await tokenContract.balanceOf(CONTRACT_ADDRESS!);
+            console.log('Contract USDC balance before guess:', contractBalance.toString());
+
+            // Check contract's ETH balance (needed for VRF)
+            const contractEthBalance = await provider!.getBalance(CONTRACT_ADDRESS!);
+            console.log('Contract ETH balance:', ethers.formatEther(contractEthBalance), 'ETH');
+
+            // Check if there are any pending VRF requests
+            try {
+                const pendingRequests = await contract.getPendingRequests();
+                console.log('Pending VRF requests:', pendingRequests);
+            } catch (error) {
+                console.log('No getPendingRequests function or error:', error);
+            }
+
+            // Make the guess
+            console.log('Making guess...');
+            console.log('Guess number:', number);
+            console.log('Contract address:', CONTRACT_ADDRESS);
+            console.log('User address:', account);
+
+            // Make the guess (no ETH value needed - contract should be funded separately)
+            const tx = await contract.guess(number);
+            console.log('Guess transaction sent, waiting for confirmation...');
+            const receipt = await tx.wait();
+            console.log('Guess confirmed! Receipt:', receipt);
+
+            // Start polling for Win/Miss events since VRF callback happens in a different transaction
+            // This is a fallback in case event listeners don't fire reliably
+            const startBlock = receipt.blockNumber;
+            let pollCount = 0;
+            const maxPolls = 30; // Poll for up to 30 times (60 seconds if 2s interval)
+
+            const pollForEvents = async () => {
+                try {
+                    pollCount++;
+                    const currentBlock = await provider!.getBlockNumber();
+                    console.log(`Polling for events (${pollCount}/${maxPolls}), blocks ${startBlock} to ${currentBlock}`);
+
+                    // Query for Win events in recent blocks
+                    const winFilter = contract.filters.Win(account);
+                    const winEvents = await contract.queryFilter(winFilter, startBlock, currentBlock);
+
+                    if (winEvents.length > 0) {
+                        console.log('Polling found Win event!', winEvents[winEvents.length - 1]);
+                        const event = winEvents[winEvents.length - 1]; // Get the latest one
+                        const args = event.args;
+                        if (args && callbacks?.onWin) {
+                            const tokenContractForDecimals = new ethers.Contract(
+                                TOKEN_ADDRESS!,
+                                ['function decimals() view returns (uint8)'],
+                                provider!
+                            );
+                            const decimals = await tokenContractForDecimals.decimals();
+                            const formattedAmount = ethers.formatUnits(args[3], decimals); // amount is 4th arg
+                            const txHash = event.transactionHash || '';
+                            callbacks.onWin(Number(args[1]), formattedAmount, args[0], txHash);
+                        }
+                        return; // Stop polling
+                    }
+
+                    // Query for Miss events
+                    const missFilter = contract.filters.Miss(account);
+                    const missEvents = await contract.queryFilter(missFilter, startBlock, currentBlock);
+
+                    if (missEvents.length > 0) {
+                        console.log('Polling found Miss event!', missEvents[missEvents.length - 1]);
+                        const event = missEvents[missEvents.length - 1]; // Get the latest one
+                        const args = event.args;
+                        if (args && callbacks?.onMiss) {
+                            callbacks.onMiss(Number(args[1]), Number(args[2])); // guessedNumber, winningNumber
+                        }
+                        return; // Stop polling
+                    }
+
+                    // Continue polling if we haven't reached max polls
+                    if (pollCount < maxPolls) {
+                        setTimeout(pollForEvents, 2000); // Poll every 2 seconds
+                    } else {
+                        console.log('Max polls reached, stopping event polling');
+                    }
+                } catch (error) {
+                    console.error('Error polling for events:', error);
+                    // Continue polling on error
+                    if (pollCount < maxPolls) {
+                        setTimeout(pollForEvents, 2000);
+                    }
+                }
+            };
+
+            // Start polling after a short delay
+            setTimeout(pollForEvents, 3000); // Start polling after 3 seconds
+
+            return true;
+        } catch (error) {
+            console.error('Error making guess:', error);
+            if (callbacks?.onError) {
+                callbacks.onError('Failed to make guess: ' + (error as Error).message);
+            }
+            return false;
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // Listen for contract events
+    useEffect(() => {
+        if (!contract) return;
+
+        const handleGuessSubmitted = (requestId: any, player: string, number: any, potAtTime: any) => {
+            console.log('Guess submitted:', { requestId, player, number, potAtTime });
+        };
+
+        const handleWin = async (player: string, guessedNumber: any, winningNumber: any, amount: any, event: any) => {
+            console.log('Win event received!', { player, guessedNumber, winningNumber, amount, event });
+            // Get transaction hash from the event object
+            const txHash = event?.log?.transactionHash || event?.transactionHash || '';
+
+            // Get token decimals dynamically
+            if (provider) {
+                try {
+                    const tokenContractForDecimals = new ethers.Contract(
+                        TOKEN_ADDRESS!,
+                        ['function decimals() view returns (uint8)'],
+                        provider
+                    );
+                    const decimals = await tokenContractForDecimals.decimals();
+                    const formattedAmount = ethers.formatUnits(amount, decimals);
+                    if (callbacks?.onWin) {
+                        callbacks.onWin(Number(guessedNumber), formattedAmount, player, txHash);
+                    }
+                } catch (error) {
+                    console.error('Error formatting win amount:', error);
+                    if (callbacks?.onWin) {
+                        callbacks.onWin(Number(guessedNumber), '0', player, txHash);
+                    }
+                }
+            } else {
+                if (callbacks?.onWin) {
+                    callbacks.onWin(Number(guessedNumber), '0', player, txHash);
+                }
+            }
+        };
+
+        const handleMiss = (player: string, guessedNumber: any, winningNumber: any, potAtTime: any) => {
+            console.log('Miss event received!', { player, guessedNumber, winningNumber, potAtTime });
+            if (callbacks?.onMiss) {
+                console.log('Calling onMiss callback with:', Number(guessedNumber), Number(winningNumber));
+                callbacks.onMiss(Number(guessedNumber), Number(winningNumber));
+            } else {
+                console.warn('No onMiss callback defined!');
+            }
+        };
+
+        console.log('Setting up contract event listeners...');
+        contract.on('GuessSubmitted', handleGuessSubmitted);
+        contract.on('Win', handleWin);
+        contract.on('Miss', handleMiss);
+        console.log('Contract event listeners set up successfully');
+
+        return () => {
+            console.log('Cleaning up contract event listeners...');
+            contract.off('GuessSubmitted', handleGuessSubmitted);
+            contract.off('Win', handleWin);
+            contract.off('Miss', handleMiss);
+        };
+    }, [contract, callbacks, provider]);
+
+    return {
+        connectWallet,
+        getPot,
+        getPlayerWins,
+        getPlayerGuesses,
+        getTokenBalance,
+        approveTokens,
+        makeGuess,
+        isConnected,
+        isLoading,
+        account,
+        contract
+    };
+}

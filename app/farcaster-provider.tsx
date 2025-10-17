@@ -26,40 +26,40 @@ export function FarcasterProvider({ children }: { children: ReactNode }) {
     const [user, setUser] = useState<FarcasterUser | null>(null);
     const [isFarcasterEnvironment, setIsFarcasterEnvironment] = useState(false);
 
-  useEffect(() => {
-    const initFarcaster = async () => {
-      try {
-        // Check if we're in a Farcaster environment
-        const isInFarcaster = typeof window !== 'undefined' && 
-          (window.location !== window.parent.location || 
-           window.navigator.userAgent.includes('Farcaster') ||
-           window.location.search.includes('farcaster') ||
-           document.referrer.includes('farcaster') ||
-           (window as any).farcaster);
+    useEffect(() => {
+        const initFarcaster = async () => {
+            try {
+                // Check if we're in a Farcaster environment
+                const isInFarcaster = typeof window !== 'undefined' &&
+                    (window.location !== window.parent.location ||
+                        window.navigator.userAgent.includes('Farcaster') ||
+                        window.location.search.includes('farcaster') ||
+                        document.referrer.includes('farcaster') ||
+                        (window as any).farcaster);
 
-        setIsFarcasterEnvironment(isInFarcaster);
+                setIsFarcasterEnvironment(isInFarcaster);
 
-        if (isInFarcaster) {
-          // Initialize Farcaster SDK
-          try {
-            await sdk.actions.ready();
-          } catch (sdkError) {
-            console.warn('Farcaster SDK not available:', sdkError);
-          }
-        }
-        
-        // Always set ready after a short delay to ensure proper initialization
-        setTimeout(() => {
-          setIsReady(true);
-        }, 100);
-      } catch (error) {
-        console.error('Failed to initialize Farcaster SDK:', error);
-        setIsReady(true); // Still show the app
-      }
-    };
+                if (isInFarcaster) {
+                    // Initialize Farcaster SDK
+                    try {
+                        await sdk.actions.ready();
+                    } catch (sdkError) {
+                        console.warn('Farcaster SDK not available:', sdkError);
+                    }
+                }
 
-    initFarcaster();
-  }, []);
+                // Always set ready after a short delay to ensure proper initialization
+                setTimeout(() => {
+                    setIsReady(true);
+                }, 100);
+            } catch (error) {
+                console.error('Failed to initialize Farcaster SDK:', error);
+                setIsReady(true); // Still show the app
+            }
+        };
+
+        initFarcaster();
+    }, []);
 
     const signIn = async () => {
         try {
