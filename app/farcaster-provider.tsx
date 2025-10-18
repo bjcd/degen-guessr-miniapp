@@ -29,38 +29,30 @@ export function FarcasterProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         const initFarcaster = async () => {
             console.log('Initializing Farcaster provider...');
+            
+            // Check if we're in a Farcaster environment
+            const isInFarcaster = typeof window !== 'undefined' &&
+                (window.location !== window.parent.location ||
+                    window.navigator.userAgent.includes('Farcaster') ||
+                    window.location.search.includes('farcaster') ||
+                    document.referrer.includes('farcaster') ||
+                    (window as any).farcaster);
+
+            console.log('Is in Farcaster environment:', isInFarcaster);
+            setIsFarcasterEnvironment(isInFarcaster);
+
+            // Always call sdk.actions.ready() to dismiss splash screen
             try {
-                // Always call sdk.actions.ready() first to dismiss splash screen
-                try {
-                    console.log('Calling sdk.actions.ready()...');
-                    await sdk.actions.ready();
-                    console.log('Farcaster SDK ready - splash screen hidden');
-                } catch (sdkError) {
-                    console.warn('Farcaster SDK not available:', sdkError);
-                }
-
-                // Check if we're in a Farcaster environment
-                const isInFarcaster = typeof window !== 'undefined' &&
-                    (window.location !== window.parent.location ||
-                        window.navigator.userAgent.includes('Farcaster') ||
-                        window.location.search.includes('farcaster') ||
-                        document.referrer.includes('farcaster') ||
-                        (window as any).farcaster);
-
-                console.log('Is in Farcaster environment:', isInFarcaster);
-                setIsFarcasterEnvironment(isInFarcaster);
-
-                // Always set ready after a short delay to ensure proper initialization
-                console.log('Setting timeout to mark as ready...');
-                setTimeout(() => {
-                    console.log('Setting Farcaster provider ready');
-                    setIsReady(true);
-                }, 100);
-            } catch (error) {
-                console.error('Failed to initialize Farcaster SDK:', error);
-                console.log('Setting ready due to error');
-                setIsReady(true); // Still show the app
+                console.log('Calling sdk.actions.ready()...');
+                await sdk.actions.ready();
+                console.log('Farcaster SDK ready - splash screen hidden');
+            } catch (sdkError) {
+                console.warn('Farcaster SDK not available:', sdkError);
             }
+
+            // Set ready immediately after calling sdk.actions.ready()
+            console.log('Setting Farcaster provider ready');
+            setIsReady(true);
         };
 
         initFarcaster();
