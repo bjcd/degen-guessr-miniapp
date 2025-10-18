@@ -30,6 +30,15 @@ export function FarcasterProvider({ children }: { children: ReactNode }) {
         const initFarcaster = async () => {
             console.log('Initializing Farcaster provider...');
             try {
+                // Always call sdk.actions.ready() first to dismiss splash screen
+                try {
+                    console.log('Calling sdk.actions.ready()...');
+                    await sdk.actions.ready();
+                    console.log('Farcaster SDK ready - splash screen hidden');
+                } catch (sdkError) {
+                    console.warn('Farcaster SDK not available:', sdkError);
+                }
+
                 // Check if we're in a Farcaster environment
                 const isInFarcaster = typeof window !== 'undefined' &&
                     (window.location !== window.parent.location ||
@@ -40,17 +49,6 @@ export function FarcasterProvider({ children }: { children: ReactNode }) {
 
                 console.log('Is in Farcaster environment:', isInFarcaster);
                 setIsFarcasterEnvironment(isInFarcaster);
-
-                if (isInFarcaster) {
-                    // Initialize Farcaster SDK
-                    try {
-                        console.log('Initializing Farcaster SDK...');
-                        await sdk.actions.ready();
-                        console.log('Farcaster SDK ready - splash screen hidden');
-                    } catch (sdkError) {
-                        console.warn('Farcaster SDK not available:', sdkError);
-                    }
-                }
 
                 // Always set ready after a short delay to ensure proper initialization
                 console.log('Setting timeout to mark as ready...');
