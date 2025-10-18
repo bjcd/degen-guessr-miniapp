@@ -6,10 +6,6 @@
             "use": "@vercel/next"
         }
     ],
-    "env": {
-        "NEXT_PUBLIC_CONTRACT_ADDRESS": "@contract_address",
-        "NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID": "@wallet_connect_project_id"
-    },
     "headers": [
         {
             "source": "/(.*)",
