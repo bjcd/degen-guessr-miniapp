@@ -6,7 +6,7 @@ import { Input } from "./components/ui/input";
 import { Card } from "./components/ui/card";
 import { Trophy, Zap, TrendingUp, Sparkles } from "lucide-react";
 // @ts-ignore
-import degenHat from "../public/degen-logo.png";
+import degenHat from "/degen-logo.png";
 import { useFarcaster } from "./farcaster-provider";
 import { useContract } from "./hooks/useContract";
 
