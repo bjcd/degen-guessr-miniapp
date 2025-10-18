@@ -26,7 +26,7 @@ export function useContract(callbacks?: ContractCallbacks) {
     const [account, setAccount] = useState<string | null>(null);
     const [isConnected, setIsConnected] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
-    
+
     // Create a read-only provider for contract data
     const rpcProvider = new ethers.JsonRpcProvider(BASE_RPC_URL);
     const readOnlyContract = new ethers.Contract(CONTRACT_ADDRESS!, DegenGuessrABI, rpcProvider);
@@ -41,6 +41,18 @@ export function useContract(callbacks?: ContractCallbacks) {
                 const accounts = await provider.send("eth_requestAccounts", []);
 
                 if (accounts.length > 0) {
+                    // Check if user is on Base Mainnet (chainId: 8453)
+                    const network = await provider.getNetwork();
+                    console.log('Current network:', network);
+
+                    if (Number(network.chainId) !== 8453) {
+                        if (callbacks?.onError) {
+                            callbacks.onError('Please switch to Base Mainnet to use this app. Current network: ' + network.name);
+                        }
+                        setIsLoading(false);
+                        return;
+                    }
+
                     const signer = await provider.getSigner();
                     const contract = new ethers.Contract(
                         CONTRACT_ADDRESS!,
@@ -87,16 +99,32 @@ export function useContract(callbacks?: ContractCallbacks) {
 
     // Get player wins
     const getPlayerWins = async (playerAddress: string): Promise<number> => {
+        if (!playerAddress) {
+            console.log('No player address provided, returning 0 wins');
+            return 0;
+        }
         try {
+            console.log('Getting player wins for:', playerAddress);
             const wins = await readOnlyContract.getPlayerWins(playerAddress);
-            // Dynamically get decimals from the token contract
-            const tokenContractForDecimals = new ethers.Contract(
-                TOKEN_ADDRESS!,
-                ['function decimals() view returns (uint8)'],
-                rpcProvider
-            );
-            const decimals = await tokenContractForDecimals.decimals();
-            return Number(ethers.formatUnits(wins, decimals));
+            console.log('Raw wins:', wins.toString());
+
+            // Try to get decimals, but don't fail if it doesn't work
+            let decimals = 18; // Default to 18
+            try {
+                const tokenContractForDecimals = new ethers.Contract(
+                    TOKEN_ADDRESS!,
+                    ['function decimals() view returns (uint8)'],
+                    rpcProvider
+                );
+                decimals = await tokenContractForDecimals.decimals();
+                console.log('Token decimals for wins:', decimals);
+            } catch (decimalsError) {
+                console.warn('Could not get token decimals for wins, using default 18:', decimalsError);
+            }
+
+            const formattedWins = Number(ethers.formatUnits(wins, decimals));
+            console.log('Formatted wins:', formattedWins);
+            return formattedWins;
         } catch (error) {
             console.error('Error getting player wins:', error);
             return 0;
@@ -116,9 +144,12 @@ export function useContract(callbacks?: ContractCallbacks) {
 
     // Get token balance
     const getTokenBalance = async (): Promise<number> => {
-        if (!account) return 0;
+        if (!account) {
+            console.log('No account connected, returning 0 balance');
+            return 0;
+        }
         try {
-            console.log('Getting token balance from:', TOKEN_ADDRESS);
+            console.log('Getting token balance from:', TOKEN_ADDRESS, 'for account:', account);
             const tokenContract = new ethers.Contract(
                 TOKEN_ADDRESS!,
                 [
@@ -131,11 +162,24 @@ export function useContract(callbacks?: ContractCallbacks) {
 
             const balance = await tokenContract.balanceOf(account);
             console.log('Raw balance:', balance.toString());
-            // Dynamically get decimals from the token contract
-            const decimals = await tokenContract.decimals();
-            console.log('Token decimals:', decimals);
-            const symbol = await tokenContract.symbol();
-            console.log('Token symbol:', symbol);
+
+            // Try to get decimals, but don't fail if it doesn't work
+            let decimals = 18; // Default to 18
+            try {
+                decimals = await tokenContract.decimals();
+                console.log('Token decimals:', decimals);
+            } catch (decimalsError) {
+                console.warn('Could not get token decimals, using default 18:', decimalsError);
+            }
+
+            // Try to get symbol, but don't fail if it doesn't work
+            try {
+                const symbol = await tokenContract.symbol();
+                console.log('Token symbol:', symbol);
+            } catch (symbolError) {
+                console.warn('Could not get token symbol:', symbolError);
+            }
+
             const formattedBalance = Number(ethers.formatUnits(balance, decimals));
             console.log('Formatted balance:', formattedBalance);
             return formattedBalance;
@@ -161,12 +205,18 @@ export function useContract(callbacks?: ContractCallbacks) {
             );
 
             // Dynamically get decimals from the token contract
-            const tokenContractForDecimals = new ethers.Contract(
-                TOKEN_ADDRESS!,
-                ['function decimals() view returns (uint8)'],
-                rpcProvider
-            );
-            const decimals = await tokenContractForDecimals.decimals();
+            let decimals = 18; // Default to 18
+            try {
+                const tokenContractForDecimals = new ethers.Contract(
+                    TOKEN_ADDRESS!,
+                    ['function decimals() view returns (uint8)'],
+                    rpcProvider
+                );
+                decimals = await tokenContractForDecimals.decimals();
+                console.log('Token decimals for approval:', decimals);
+            } catch (decimalsError) {
+                console.warn('Could not get token decimals for approval, using default 18:', decimalsError);
+            }
 
             const amountWei = ethers.parseUnits(amount, decimals);
             console.log(`Approving ${amount} tokens (${amountWei.toString()} wei) with ${decimals} decimals`);
@@ -277,12 +327,17 @@ export function useContract(callbacks?: ContractCallbacks) {
                         const event = winEvents[winEvents.length - 1]; // Get the latest one
                         // Type guard to check if event is EventLog (has args property)
                         if ('args' in event && event.args && callbacks?.onWin) {
-                            const tokenContractForDecimals = new ethers.Contract(
-                                TOKEN_ADDRESS!,
-                                ['function decimals() view returns (uint8)'],
-                                rpcProvider
-                            );
-                            const decimals = await tokenContractForDecimals.decimals();
+                            let decimals = 18; // Default to 18
+                            try {
+                                const tokenContractForDecimals = new ethers.Contract(
+                                    TOKEN_ADDRESS!,
+                                    ['function decimals() view returns (uint8)'],
+                                    rpcProvider
+                                );
+                                decimals = await tokenContractForDecimals.decimals();
+                            } catch (decimalsError) {
+                                console.warn('Could not get token decimals for event, using default 18:', decimalsError);
+                            }
                             const formattedAmount = ethers.formatUnits(event.args[3], decimals); // amount is 4th arg
                             const txHash = event.transactionHash || '';
                             callbacks.onWin(Number(event.args[1]), formattedAmount, event.args[0], txHash);
@@ -362,12 +417,17 @@ export function useContract(callbacks?: ContractCallbacks) {
             // Get token decimals dynamically
             if (provider) {
                 try {
-                    const tokenContractForDecimals = new ethers.Contract(
-                        TOKEN_ADDRESS!,
-                        ['function decimals() view returns (uint8)'],
-                        rpcProvider
-                    );
-                    const decimals = await tokenContractForDecimals.decimals();
+                    let decimals = 18; // Default to 18
+                    try {
+                        const tokenContractForDecimals = new ethers.Contract(
+                            TOKEN_ADDRESS!,
+                            ['function decimals() view returns (uint8)'],
+                            rpcProvider
+                        );
+                        decimals = await tokenContractForDecimals.decimals();
+                    } catch (decimalsError) {
+                        console.warn('Could not get token decimals for manual win, using default 18:', decimalsError);
+                    }
                     const formattedAmount = ethers.formatUnits(amount, decimals);
                     if (callbacks?.onWin) {
                         callbacks.onWin(Number(guessedNumber), formattedAmount, player, txHash);
@@ -419,20 +479,29 @@ export function useContract(callbacks?: ContractCallbacks) {
         timestamp: Date;
     }>> => {
         try {
+            console.log('Getting past winners...');
             // Query Win events from the last 10,000 blocks (roughly last few days on Base)
             const currentBlock = await rpcProvider.getBlockNumber();
             const fromBlock = Math.max(0, currentBlock - 10000);
+            console.log('Querying events from block', fromBlock, 'to', currentBlock);
 
             const filter = readOnlyContract.filters.Win();
             const events = await readOnlyContract.queryFilter(filter, fromBlock, currentBlock);
+            console.log('Found', events.length, 'Win events');
 
             // Get token decimals for formatting
-            const tokenContractForDecimals = new ethers.Contract(
-                TOKEN_ADDRESS!,
-                ['function decimals() view returns (uint8)'],
-                rpcProvider
-            );
-            const decimals = await tokenContractForDecimals.decimals();
+            let decimals = 18; // Default to 18
+            try {
+                const tokenContractForDecimals = new ethers.Contract(
+                    TOKEN_ADDRESS!,
+                    ['function decimals() view returns (uint8)'],
+                    rpcProvider
+                );
+                decimals = await tokenContractForDecimals.decimals();
+                console.log('Token decimals for past winners:', decimals);
+            } catch (decimalsError) {
+                console.warn('Could not get token decimals for past winners, using default 18:', decimalsError);
+            }
 
             // Process events and get block timestamps
             const winners = await Promise.all(
@@ -451,6 +520,7 @@ export function useContract(callbacks?: ContractCallbacks) {
                 })
             );
 
+            console.log('Processed', winners.length, 'winners');
             return winners;
         } catch (error) {
             console.error('Error getting past winners:', error);

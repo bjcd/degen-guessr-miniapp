@@ -287,7 +287,10 @@ export default function Home() {
         }
     };
 
+    console.log('Page render - isReady:', isReady, 'user:', user);
+    
     if (!isReady) {
+        console.log('Showing loading screen');
         return (
             <main className="min-h-screen bg-gradient-to-br from-background via-[hsl(270_50%_10%)] to-background flex items-center justify-center">
                 <div className="text-center space-y-4">

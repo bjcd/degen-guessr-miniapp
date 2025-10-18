@@ -28,6 +28,7 @@ export function FarcasterProvider({ children }: { children: ReactNode }) {
 
     useEffect(() => {
         const initFarcaster = async () => {
+            console.log('Initializing Farcaster provider...');
             try {
                 // Check if we're in a Farcaster environment
                 const isInFarcaster = typeof window !== 'undefined' &&
@@ -37,23 +38,29 @@ export function FarcasterProvider({ children }: { children: ReactNode }) {
                         document.referrer.includes('farcaster') ||
                         (window as any).farcaster);
 
+                console.log('Is in Farcaster environment:', isInFarcaster);
                 setIsFarcasterEnvironment(isInFarcaster);
 
                 if (isInFarcaster) {
                     // Initialize Farcaster SDK
                     try {
+                        console.log('Initializing Farcaster SDK...');
                         await sdk.actions.ready();
+                        console.log('Farcaster SDK ready');
                     } catch (sdkError) {
                         console.warn('Farcaster SDK not available:', sdkError);
                     }
                 }
 
                 // Always set ready after a short delay to ensure proper initialization
+                console.log('Setting timeout to mark as ready...');
                 setTimeout(() => {
+                    console.log('Setting Farcaster provider ready');
                     setIsReady(true);
                 }, 100);
             } catch (error) {
                 console.error('Failed to initialize Farcaster SDK:', error);
+                console.log('Setting ready due to error');
                 setIsReady(true); // Still show the app
             }
         };
