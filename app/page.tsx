@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { Card } from "./components/ui/card";
@@ -44,6 +44,7 @@ export default function Home() {
     const [playerWins, setPlayerWins] = useState(0);
     const [isWinning, setIsWinning] = useState(false);
     const [loadingMessage, setLoadingMessage] = useState<string>("");
+    const loadedAccountRef = useRef<string | null>(null);
     const [winners, setWinners] = useState<Winner[]>([]);
 
     const {
@@ -75,27 +76,19 @@ export default function Home() {
             setTimeout(async () => {
                 setLoadingMessage('');
                 setIsWinning(false);
-                // Refresh data after win
-                const [potValue, balance, guesses, wins, pastWinners] = await Promise.all([
-                    getPot(),
-                    getTokenBalance(),
-                    account ? getPlayerGuesses(account) : Promise.resolve(0),
-                    account ? getPlayerWins(account) : Promise.resolve(0),
-                    getPastWinners()
-                ]);
-                setPot(potValue);
-                setTokenBalance(balance);
-                setTotalGuesses(guesses);
-                setPlayerWins(wins);
-                // Map pastWinners to Winner interface
-                const mappedWinners: Winner[] = pastWinners.map((winner, index) => ({
-                    id: Date.now() + index,
-                    address: winner.player,
-                    amount: parseFloat(winner.amount),
-                    timestamp: winner.timestamp,
-                    txHash: winner.txHash
-                }));
-                setWinners(mappedWinners);
+                // Refresh both public and user data after win
+                await loadPublicData();
+                if (isConnected) {
+                    // Refresh user data
+                    const [balance, guesses, wins] = await Promise.all([
+                        getTokenBalance(),
+                        account ? getPlayerGuesses(account) : Promise.resolve(0),
+                        account ? getPlayerWins(account) : Promise.resolve(0)
+                    ]);
+                    setTokenBalance(balance);
+                    setTotalGuesses(guesses);
+                    setPlayerWins(wins);
+                }
             }, 5000);
         },
         onMiss: async (guessedNumber, winningNumber) => {
@@ -103,27 +96,19 @@ export default function Home() {
             setTimeout(async () => {
                 setLoadingMessage('');
                 setIsWinning(false);
-                // Refresh data after miss
-                const [potValue, balance, guesses, wins, pastWinners] = await Promise.all([
-                    getPot(),
-                    getTokenBalance(),
-                    account ? getPlayerGuesses(account) : Promise.resolve(0),
-                    account ? getPlayerWins(account) : Promise.resolve(0),
-                    getPastWinners()
-                ]);
-                setPot(potValue);
-                setTokenBalance(balance);
-                setTotalGuesses(guesses);
-                setPlayerWins(wins);
-                // Map pastWinners to Winner interface
-                const mappedWinners: Winner[] = pastWinners.map((winner, index) => ({
-                    id: Date.now() + index,
-                    address: winner.player,
-                    amount: parseFloat(winner.amount),
-                    timestamp: winner.timestamp,
-                    txHash: winner.txHash
-                }));
-                setWinners(mappedWinners);
+                // Refresh both public and user data after miss
+                await loadPublicData();
+                if (isConnected) {
+                    // Refresh user data
+                    const [balance, guesses, wins] = await Promise.all([
+                        getTokenBalance(),
+                        account ? getPlayerGuesses(account) : Promise.resolve(0),
+                        account ? getPlayerWins(account) : Promise.resolve(0)
+                    ]);
+                    setTokenBalance(balance);
+                    setTotalGuesses(guesses);
+                    setPlayerWins(wins);
+                }
             }, 3000);
         },
         onError: (message) => {
@@ -136,39 +121,22 @@ export default function Home() {
 
     const isDemoMode = GUESS_GAME_CONTRACT === '0x0000000000000000000000000000000000000000';
 
-    // Load contract data
-    useEffect(() => {
-        if (isConnected && !isDemoMode) {
-            loadContractData();
-        }
-    }, [isConnected, isDemoMode]);
-
-    const loadContractData = async () => {
+    const loadPublicData = async () => {
         try {
-            console.log('Loading contract data...');
-            console.log('Account:', account);
+            console.log('Loading public contract data...');
             console.log('Contract address:', GUESS_GAME_CONTRACT);
             console.log('Is demo mode:', isDemoMode);
 
-            const [potValue, balance, guesses, wins, pastWinners] = await Promise.all([
+            const [potValue, pastWinners] = await Promise.all([
                 getPot(),
-                getTokenBalance(),
-                account ? getPlayerGuesses(account) : Promise.resolve(0),
-                account ? getPlayerWins(account) : Promise.resolve(0),
                 getPastWinners(10)
             ]);
 
-            console.log('Contract data loaded:');
+            console.log('Public data loaded:');
             console.log('Pot value:', potValue);
-            console.log('Balance:', balance);
-            console.log('Guesses:', guesses);
-            console.log('Wins:', wins);
             console.log('Past winners:', pastWinners);
 
             setPot(potValue);
-            setTokenBalance(balance);
-            setTotalGuesses(guesses);
-            setPlayerWins(wins);
 
             // Convert past winners to Winner format
             const formattedWinners: Winner[] = pastWinners.map((winner, index) => ({
@@ -180,9 +148,58 @@ export default function Home() {
             }));
             setWinners(formattedWinners);
         } catch (error) {
-            console.error('Error loading contract data:', error);
+            console.error('Error loading public data:', error);
         }
     };
+
+    // Load public contract data (pot and past winners) immediately
+    useEffect(() => {
+        if (!isDemoMode) {
+            loadPublicData();
+        }
+    }, [isDemoMode]);
+
+    // Load user-specific data when wallet connects
+    useEffect(() => {
+        const loadUserData = async () => {
+            try {
+                console.log('Loading user-specific data...');
+                console.log('Account:', account);
+                console.log('Is connected:', isConnected);
+
+                if (!account) {
+                    console.log('No account, skipping user data load');
+                    return;
+                }
+
+                const [balance, guesses, wins] = await Promise.all([
+                    getTokenBalance(),
+                    getPlayerGuesses(account),
+                    getPlayerWins(account)
+                ]);
+
+                console.log('User data loaded:');
+                console.log('Balance:', balance);
+                console.log('Guesses:', guesses);
+                console.log('Wins:', wins);
+
+                setTokenBalance(balance);
+                setTotalGuesses(guesses);
+                setPlayerWins(wins);
+
+                console.log('State updated - totalGuesses:', guesses, 'playerWins:', wins);
+            } catch (error) {
+                console.error('Error loading user data:', error);
+            }
+        };
+
+        console.log('useEffect triggered - isConnected:', isConnected, 'isDemoMode:', isDemoMode, 'account:', account);
+        if (isConnected && !isDemoMode && account && loadedAccountRef.current !== account) {
+            console.log('Calling loadUserData...');
+            loadedAccountRef.current = account;
+            loadUserData();
+        }
+    }, [isConnected, isDemoMode, account]);
 
     const handleApprove = async () => {
         if (!isConnected) {
