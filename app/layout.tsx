@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import { Providers } from './providers';
-import MiniAppMeta from './miniapp-meta';
 import './globals.css';
 
 const inter = Inter({ subsets: ['latin'] });
@@ -19,8 +18,9 @@ export const metadata: Metadata = {
         images: ['/miniapp-screenshot.png'],
         type: 'website',
     },
-    // Farcaster Frame backward compatibility
+    // Farcaster MiniApp and Frame metadata
     other: {
+        'fc:miniapp': '{"version":"1","imageUrl":"https://degen-guessr-miniapp.vercel.app/miniapp-icon-large.png","button":{"title":"Play Degen Guessr","action":{"type":"launch_frame","name":"Degen Guessr","url":"https://degen-guessr-miniapp.vercel.app","splashImageUrl":"https://degen-guessr-miniapp.vercel.app/miniapp-icon.png","splashBackgroundColor":"#d26cf8"}}}',
         'fc:frame': 'vNext',
         'fc:frame:image': "https://degen-guessr-miniapp.vercel.app/miniapp-icon-large.png",
         'fc:frame:button:1': 'Play Game',
@@ -36,9 +36,6 @@ export default function RootLayout({
 }) {
     return (
         <html lang="en">
-            <head>
-                <MiniAppMeta />
-            </head>
             <body className={inter.className}>
                 <Providers>
                     <div className="min-h-screen bg-gradient-to-br from-degen-50 to-degen-100">
