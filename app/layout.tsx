@@ -15,14 +15,14 @@ export const metadata: Metadata = {
     openGraph: {
         title: 'DEGEN Guess 1-100',
         description: 'A fair guessing game on Base using $DEGEN token. Guess 1-100 to win!',
-        images: ['/og-image.png'],
+        images: ['/miniapp-screenshot.png'],
         type: 'website',
     },
     // Farcaster MiniApp Embed metadata
     other: {
         'fc:miniapp': JSON.stringify({
             version: "1",
-            imageUrl: "https://degen-guessr-miniapp.vercel.app/og-image.png",
+            imageUrl: "https://degen-guessr-miniapp.vercel.app/miniapp-screenshot.png",
             button: {
                 title: "Play Degen Guessr",
                 action: {
@@ -33,7 +33,7 @@ export const metadata: Metadata = {
         }),
         // Backward compatibility with fc:frame
         'fc:frame': 'vNext',
-        'fc:frame:image': "https://degen-guessr-miniapp.vercel.app/og-image.png",
+        'fc:frame:image': "https://degen-guessr-miniapp.vercel.app/miniapp-screenshot.png",
         'fc:frame:button:1': 'Play Game',
         'fc:frame:button:1:action': 'link',
         'fc:frame:button:1:target': "https://degen-guessr-miniapp.vercel.app",
