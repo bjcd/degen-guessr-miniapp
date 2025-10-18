@@ -5,8 +5,6 @@ import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { Card } from "./components/ui/card";
 import { Trophy, Zap, TrendingUp, Sparkles } from "lucide-react";
-// @ts-ignore
-import degenHat from "/degen-logo.png";
 import { useFarcaster } from "./farcaster-provider";
 import { useContract } from "./hooks/useContract";
 
@@ -286,11 +284,11 @@ export default function Home() {
                 {/* Header with Logo */}
                 <div className="text-center space-y-3">
                     <div className="flex items-center justify-center gap-3">
-                        <img src={degenHat.src || degenHat} alt="Degen Hat" className="w-16 h-16 object-contain animate-[bounce_2s_ease-in-out_infinite]" />
+                        <img src="/degen-logo.png" alt="Degen Hat" className="w-16 h-16 object-contain animate-[bounce_2s_ease-in-out_infinite]" />
                         <h1 className="text-6xl font-black bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent neon-glow">
                             DEGEN GUESSR
                         </h1>
-                        <img src={degenHat.src || degenHat} alt="Degen Hat" className="w-16 h-16 object-contain animate-[bounce_2s_ease-in-out_infinite] scale-x-[-1]" />
+                        <img src="/degen-logo.png" alt="Degen Hat" className="w-16 h-16 object-contain animate-[bounce_2s_ease-in-out_infinite] scale-x-[-1]" />
                     </div>
                     <p className="text-muted-foreground text-sm font-medium">Guess the number. Win the pot. Be legendary.</p>
 
@@ -365,7 +363,7 @@ export default function Home() {
                                 className="w-full h-16 bg-gradient-to-r from-primary to-secondary hover:from-primary-glow hover:to-secondary-glow text-white font-black text-xl transition-all duration-300 neon-button rounded-2xl flex items-center justify-center gap-3"
                                 disabled={isWinning || isLoading}
                             >
-                                <img src={degenHat.src || degenHat} alt="Hat" className="w-8 h-8 object-contain" />
+                                <img src="/degen-logo.png" alt="Hat" className="w-8 h-8 object-contain" />
                                 <Zap className="w-6 h-6" />
                                 {isWinning ? "PROCESSING..." : isDemoMode ? "GUESS FOR 100 $DEGEN" : "MAKE GUESS"}
                                 <Zap className="w-6 h-6" />
