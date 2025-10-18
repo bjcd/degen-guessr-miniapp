@@ -329,12 +329,12 @@ export function useContract(callbacks?: ContractCallbacks) {
             const pollForEvents = async () => {
                 try {
                     pollCount++;
-                    const currentBlock = await provider!.getBlockNumber();
+                    const currentBlock = await rpcProvider.getBlockNumber();
                     console.log(`Polling for events (${pollCount}/${maxPolls}), blocks ${startBlock} to ${currentBlock}`);
 
-                    // Query for Win events in recent blocks
-                    const winFilter = contract.filters.Win(account);
-                    const winEvents = await contract.queryFilter(winFilter, startBlock, currentBlock);
+                    // Query for Win events in recent blocks using read-only provider
+                    const winFilter = readOnlyContract.filters.Win(account);
+                    const winEvents = await readOnlyContract.queryFilter(winFilter, startBlock, currentBlock);
 
                     if (winEvents.length > 0) {
                         console.log('Polling found Win event!', winEvents[winEvents.length - 1]);
@@ -360,8 +360,8 @@ export function useContract(callbacks?: ContractCallbacks) {
                     }
 
                     // Query for Miss events
-                    const missFilter = contract.filters.Miss(account);
-                    const missEvents = await contract.queryFilter(missFilter, startBlock, currentBlock);
+                    const missFilter = readOnlyContract.filters.Miss(account);
+                    const missEvents = await readOnlyContract.queryFilter(missFilter, startBlock, currentBlock);
 
                     if (missEvents.length > 0) {
                         console.log('Polling found Miss event!', missEvents[missEvents.length - 1]);
