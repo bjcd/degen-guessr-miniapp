@@ -235,7 +235,10 @@ export function useContract(callbacks?: ContractCallbacks) {
             const amountWei = ethers.parseUnits(amount, decimals);
             console.log(`Approving ${amount} tokens (${amountWei.toString()} wei) with ${decimals} decimals`);
 
-            const tx = await tokenContract.approve(CONTRACT_ADDRESS!, amountWei);
+            // Use manual gas limit to avoid eth_estimateGas (Farcaster-compatible)
+            const tx = await tokenContract.approve(CONTRACT_ADDRESS!, amountWei, {
+                gasLimit: 100000n // Standard ERC20 approve gas limit
+            });
             console.log('Approval transaction sent, waiting for confirmation...');
             const receipt = await tx.wait();
             console.log('Approval transaction confirmed!');
@@ -319,8 +322,10 @@ export function useContract(callbacks?: ContractCallbacks) {
             console.log('Contract address:', CONTRACT_ADDRESS);
             console.log('User address:', account);
 
-            // Make the guess (no ETH value needed - contract should be funded separately)
-            const tx = await contract.guess(number);
+            // Make the guess with manual gas limit (Farcaster-compatible)
+            const tx = await contract.guess(number, {
+                gasLimit: 500000n // Gas limit for guess transaction (includes VRF callback)
+            });
             console.log('Guess transaction sent, waiting for confirmation...');
             const receipt = await tx.wait();
             console.log('Guess confirmed! Receipt:', receipt);
