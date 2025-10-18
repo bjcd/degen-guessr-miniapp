@@ -240,8 +240,13 @@ export function useContract(callbacks?: ContractCallbacks) {
             const receipt = await tx.wait();
             console.log('Approval transaction confirmed!');
 
-            // Verify approval
-            const allowance = await tokenContract.allowance(account, CONTRACT_ADDRESS!);
+            // Verify approval using read-only provider (Farcaster-compatible)
+            const readOnlyTokenContract = new ethers.Contract(
+                TOKEN_ADDRESS!,
+                ['function allowance(address owner, address spender) view returns (uint256)'],
+                rpcProvider
+            );
+            const allowance = await readOnlyTokenContract.allowance(account, CONTRACT_ADDRESS!);
             console.log(`Allowance after approval: ${allowance.toString()}`);
 
             return true;
@@ -259,21 +264,21 @@ export function useContract(callbacks?: ContractCallbacks) {
         try {
             setIsLoading(true);
 
-            // Check if user has approved enough tokens
-            const tokenContract = new ethers.Contract(
+            // Use read-only provider for all read operations (Farcaster-compatible)
+            const readOnlyTokenContract = new ethers.Contract(
                 TOKEN_ADDRESS!,
                 [
                     'function allowance(address owner, address spender) view returns (uint256)',
                     'function decimals() view returns (uint8)',
                     'function balanceOf(address owner) view returns (uint256)'
                 ],
-                provider!
+                rpcProvider
             );
 
-            const decimals = await tokenContract.decimals();
+            const decimals = await readOnlyTokenContract.decimals();
             const requiredAmount = 100 * (10 ** Number(decimals));
-            const allowance = await tokenContract.allowance(account, CONTRACT_ADDRESS!);
-            const userBalance = await tokenContract.balanceOf(account);
+            const allowance = await readOnlyTokenContract.allowance(account, CONTRACT_ADDRESS!);
+            const userBalance = await readOnlyTokenContract.balanceOf(account);
 
             console.log('Required amount:', requiredAmount.toString());
             console.log('Current allowance:', allowance.toString());
@@ -288,21 +293,21 @@ export function useContract(callbacks?: ContractCallbacks) {
                 return false;
             }
 
-            // Check if contract is paused
-            const isPaused = await contract.paused();
+            // Check if contract is paused (use read-only contract)
+            const isPaused = await readOnlyContract.paused();
             console.log('Contract paused?', isPaused);
 
             // Check contract's USDC balance
-            const contractBalance = await tokenContract.balanceOf(CONTRACT_ADDRESS!);
+            const contractBalance = await readOnlyTokenContract.balanceOf(CONTRACT_ADDRESS!);
             console.log('Contract USDC balance before guess:', contractBalance.toString());
 
             // Check contract's ETH balance (needed for VRF)
-            const contractEthBalance = await provider!.getBalance(CONTRACT_ADDRESS!);
+            const contractEthBalance = await rpcProvider.getBalance(CONTRACT_ADDRESS!);
             console.log('Contract ETH balance:', ethers.formatEther(contractEthBalance), 'ETH');
 
-            // Check if there are any pending VRF requests
+            // Check if there are any pending VRF requests (use read-only contract)
             try {
-                const pendingRequests = await contract.getPendingRequests();
+                const pendingRequests = await readOnlyContract.getPendingRequests();
                 console.log('Pending VRF requests:', pendingRequests);
             } catch (error) {
                 console.log('No getPendingRequests function or error:', error);

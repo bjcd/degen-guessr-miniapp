@@ -152,6 +152,14 @@ export default function Home() {
         }
     };
 
+    // Auto-connect wallet in Farcaster environment
+    useEffect(() => {
+        if (isReady && isFarcasterEnvironment && !isConnected && !isLoading) {
+            console.log('Auto-connecting wallet in Farcaster environment...');
+            connectWallet();
+        }
+    }, [isReady, isFarcasterEnvironment, isConnected, isLoading, connectWallet]);
+
     // Load public contract data (pot and past winners) immediately
     useEffect(() => {
         if (!isDemoMode) {
@@ -186,7 +194,7 @@ export default function Home() {
                 setTokenBalance(balance);
                 setTotalGuesses(guesses);
                 setPlayerWins(wins);
-                
+
                 console.log('State updated - totalGuesses:', guesses, 'playerWins:', wins);
             } catch (error) {
                 console.error('Error loading user data:', error);
