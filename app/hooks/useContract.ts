@@ -8,7 +8,7 @@ import { getRecentWinners, getGameStats, type Win as GraphWin } from '../lib/gra
 
 const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS;
 const TOKEN_ADDRESS = process.env.NEXT_PUBLIC_DEGEN_TOKEN_ADDRESS;
-const BASE_RPC_URL = process.env.BASE_RPC_URL || 'https://mainnet.base.org';
+const BASE_RPC_URL = process.env.NEXT_PUBLIC_BASE_RPC_URL || 'https://mainnet.base.org';
 
 console.log('Contract Address:', CONTRACT_ADDRESS);
 console.log('Token Address:', TOKEN_ADDRESS);
@@ -329,7 +329,7 @@ export function useContract(callbacks?: ContractCallbacks) {
                 gasLimit: 500000n // Gas limit for guess transaction (includes VRF callback)
             });
             console.log('Guess transaction sent, waiting for confirmation...');
-            
+
             // Wait for transaction using RPC provider (Farcaster-compatible)
             const receipt = await rpcProvider.waitForTransaction(tx.hash);
             if (!receipt) {
