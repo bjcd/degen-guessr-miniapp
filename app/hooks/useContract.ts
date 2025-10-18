@@ -240,7 +240,9 @@ export function useContract(callbacks?: ContractCallbacks) {
                 gasLimit: 100000n // Standard ERC20 approve gas limit
             });
             console.log('Approval transaction sent, waiting for confirmation...');
-            const receipt = await tx.wait();
+            
+            // Wait for transaction using RPC provider (Farcaster-compatible)
+            const receipt = await rpcProvider.waitForTransaction(tx.hash);
             console.log('Approval transaction confirmed!');
 
             // Verify approval using read-only provider (Farcaster-compatible)
@@ -327,7 +329,9 @@ export function useContract(callbacks?: ContractCallbacks) {
                 gasLimit: 500000n // Gas limit for guess transaction (includes VRF callback)
             });
             console.log('Guess transaction sent, waiting for confirmation...');
-            const receipt = await tx.wait();
+            
+            // Wait for transaction using RPC provider (Farcaster-compatible)
+            const receipt = await rpcProvider.waitForTransaction(tx.hash);
             console.log('Guess confirmed! Receipt:', receipt);
 
             // Start polling for Win/Miss events since VRF callback happens in a different transaction
