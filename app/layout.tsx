@@ -8,7 +8,7 @@ const inter = Inter({ subsets: ['latin'] });
 export const metadata: Metadata = {
     title: 'DEGEN Guess 1-100',
     description: 'A fun and fair guessing game using $DEGEN token on Base network. Guess a number between 1-100 and win the entire pot!',
-    metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://degen-guessr.vercel.app'),
+    metadataBase: new URL('https://degen-guessr-miniapp.vercel.app'),
     icons: {
         icon: '/degen-logo.png',
     },
@@ -22,21 +22,21 @@ export const metadata: Metadata = {
     other: {
         'fc:miniapp': JSON.stringify({
             version: "1",
-            imageUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://degen-guessr.vercel.app'}/og-image.png`,
+            imageUrl: "https://degen-guessr-miniapp.vercel.app/og-image.png",
             button: {
-                title: "DEGEN Guess 1-100",
+                title: "Play Degen Guessr",
                 action: {
                     type: "link",
-                    url: process.env.NEXT_PUBLIC_APP_URL || 'https://degen-guessr.vercel.app'
+                    url: "https://degen-guessr-miniapp.vercel.app"
                 }
             }
         }),
         // Backward compatibility with fc:frame
         'fc:frame': 'vNext',
-        'fc:frame:image': `${process.env.NEXT_PUBLIC_APP_URL || 'https://degen-guessr.vercel.app'}/og-image.png`,
+        'fc:frame:image': "https://degen-guessr-miniapp.vercel.app/og-image.png",
         'fc:frame:button:1': 'Play Game',
         'fc:frame:button:1:action': 'link',
-        'fc:frame:button:1:target': process.env.NEXT_PUBLIC_APP_URL || 'https://degen-guessr.vercel.app',
+        'fc:frame:button:1:target': "https://degen-guessr-miniapp.vercel.app",
     },
 };
 
