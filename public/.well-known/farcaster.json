@@ -1,34 +1,36 @@
 {
-    "name": "Degen Guessr",
-    "version": "1",
-    "iconUrl": "https://degen-guessr-miniapp.vercel.app/miniapp-icon.png",
-    "homeUrl": "https://degen-guessr-miniapp.vercel.app",
-    "imageUrl": "https://degen-guessr-miniapp.vercel.app/miniapp-icon.png",
-    "buttonTitle": "Play Degen Guessr",
-    "splashImageUrl": "https://degen-guessr-miniapp.vercel.app/miniapp-icon.png",
-    "splashBackgroundColor": "#d26cf8",
-    "subtitle": "Guess the number. Win the pot.",
-    "description": "Guess a number between 1 and 100 and win the entire Degen pot! Uses Chainlink VRF for provably fair randomness.",
-    "primaryCategory": "games",
-    "screenshotUrls": [
-        "https://degen-guessr-miniapp.vercel.app/miniapp-screenshot.png"
-    ],
-    "heroImageUrl": "https://degen-guessr-miniapp.vercel.app/hero.png",
-    "tags": [
-        "guessing",
-        "fun",
-        "degen"
-    ],
-    "tagline": "Test your luck and win big!",
-    "ogImageUrl": "https://degen-guessr-miniapp.vercel.app/miniapp-icon.png",
-    "ogTitle": "Degen Guessr",
-    "requiredCapabilities": [
-        "wallet",
-        "addMiniApp"
-    ],
     "accountAssociation": {
         "header": "eyJmaWQiOjE3MDY0LCJ0eXBlIjoiY3VzdG9keSIsImtleSI6IjB4MjUxMzk5NkZENzNBNmZCNDQ2YTZBNmRhNDE1NEVjNTAzZURhYjhEMiJ9",
         "payload": "eyJkb21haW4iOiJkZWdlbi1ndWVzc3ItbWluaWFwcC52ZXJjZWwuYXBwIn0",
         "signature": "uoli+662sqkV+NxgIJ6reBNVjaHVHy/SU0drxTFDGsMFQOUHh+gm/EZC0JpA6yzoFnq7VEBPxzL9D6xeJdDWmxs="
+    },
+    "miniapp": {
+        "name": "Degen Guessr",
+        "version": "1",
+        "iconUrl": "https://degen-guessr-miniapp.vercel.app/miniapp-icon.png",
+        "homeUrl": "https://degen-guessr-miniapp.vercel.app",
+        "imageUrl": "https://degen-guessr-miniapp.vercel.app/miniapp-icon.png",
+        "buttonTitle": "Play Degen Guessr",
+        "splashImageUrl": "https://degen-guessr-miniapp.vercel.app/miniapp-icon.png",
+        "splashBackgroundColor": "#d26cf8",
+        "subtitle": "Guess the number. Win the pot.",
+        "description": "Guess a number between 1 and 100 and win the entire Degen pot! Uses Chainlink VRF for provably fair randomness.",
+        "primaryCategory": "games",
+        "screenshotUrls": [
+            "https://degen-guessr-miniapp.vercel.app/miniapp-screenshot.png"
+        ],
+        "heroImageUrl": "https://degen-guessr-miniapp.vercel.app/hero.png",
+        "tags": [
+            "guessing",
+            "fun",
+            "degen"
+        ],
+        "tagline": "Test your luck and win big!",
+        "ogImageUrl": "https://degen-guessr-miniapp.vercel.app/miniapp-icon.png",
+        "ogTitle": "Degen Guessr",
+        "requiredCapabilities": [
+            "wallet",
+            "addMiniApp"
+        ]
     }
 }
