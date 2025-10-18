@@ -35,6 +35,7 @@ export default function Home() {
     const [tokenBalance, setTokenBalance] = useState(0);
     const [attempts, setAttempts] = useState<Attempt[]>([]);
     const [totalGuesses, setTotalGuesses] = useState(0);
+    const [playerWins, setPlayerWins] = useState(0);
     const [isWinning, setIsWinning] = useState(false);
     const [loadingMessage, setLoadingMessage] = useState<string>("");
     const [winners, setWinners] = useState<Winner[]>([]);
@@ -43,9 +44,11 @@ export default function Home() {
         connectWallet,
         getPot,
         getPlayerGuesses,
+        getPlayerWins,
         getTokenBalance,
         approveTokens,
         makeGuess,
+        getPastWinners,
         isConnected,
         isLoading,
         account
@@ -67,14 +70,16 @@ export default function Home() {
                 setLoadingMessage('');
                 setIsWinning(false);
                 // Refresh data after win
-                const [potValue, balance, guesses] = await Promise.all([
+                const [potValue, balance, guesses, wins] = await Promise.all([
                     getPot(),
                     getTokenBalance(),
-                    account ? getPlayerGuesses(account) : Promise.resolve(0)
+                    account ? getPlayerGuesses(account) : Promise.resolve(0),
+                    account ? getPlayerWins(account) : Promise.resolve(0)
                 ]);
                 setPot(potValue);
                 setTokenBalance(balance);
                 setTotalGuesses(guesses);
+                setPlayerWins(wins);
             }, 5000);
         },
         onMiss: async (guessedNumber, winningNumber) => {
@@ -83,14 +88,16 @@ export default function Home() {
                 setLoadingMessage('');
                 setIsWinning(false);
                 // Refresh data after miss
-                const [potValue, balance, guesses] = await Promise.all([
+                const [potValue, balance, guesses, wins] = await Promise.all([
                     getPot(),
                     getTokenBalance(),
-                    account ? getPlayerGuesses(account) : Promise.resolve(0)
+                    account ? getPlayerGuesses(account) : Promise.resolve(0),
+                    account ? getPlayerWins(account) : Promise.resolve(0)
                 ]);
                 setPot(potValue);
                 setTokenBalance(balance);
                 setTotalGuesses(guesses);
+                setPlayerWins(wins);
             }, 3000);
         },
         onError: (message) => {
@@ -112,14 +119,27 @@ export default function Home() {
 
     const loadContractData = async () => {
         try {
-            const [potValue, balance, guesses] = await Promise.all([
+            const [potValue, balance, guesses, wins, pastWinners] = await Promise.all([
                 getPot(),
                 getTokenBalance(),
-                account ? getPlayerGuesses(account) : Promise.resolve(0)
+                account ? getPlayerGuesses(account) : Promise.resolve(0),
+                account ? getPlayerWins(account) : Promise.resolve(0),
+                getPastWinners(10)
             ]);
             setPot(potValue);
             setTokenBalance(balance);
             setTotalGuesses(guesses);
+            setPlayerWins(wins);
+
+            // Convert past winners to Winner format
+            const formattedWinners: Winner[] = pastWinners.map((winner, index) => ({
+                id: Date.now() - index,
+                address: winner.player,
+                amount: parseFloat(winner.amount),
+                timestamp: winner.timestamp,
+                txHash: winner.txHash
+            }));
+            setWinners(formattedWinners);
         } catch (error) {
             console.error('Error loading contract data:', error);
         }
@@ -372,7 +392,7 @@ export default function Home() {
                         </Card>
 
                         {/* Stats */}
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-3 gap-4">
                             <Card className="glass-card gradient-border p-5">
                                 <div className="flex items-center gap-2 text-muted-foreground text-xs font-semibold mb-2">
                                     <TrendingUp className="w-4 h-4" />
@@ -387,6 +407,14 @@ export default function Home() {
                                     <span>YOUR BALANCE</span>
                                 </div>
                                 <div className="text-4xl font-black text-foreground">{Math.floor(tokenBalance)}</div>
+                            </Card>
+
+                            <Card className="glass-card gradient-border p-5">
+                                <div className="flex items-center gap-2 text-muted-foreground text-xs font-semibold mb-2">
+                                    <Trophy className="w-4 h-4 text-yellow-400" />
+                                    <span>TOTAL WINNINGS</span>
+                                </div>
+                                <div className="text-4xl font-black text-foreground">{playerWins % 1 === 0 ? playerWins.toString() : playerWins.toFixed(2)}</div>
                             </Card>
                         </div>
 
@@ -442,7 +470,7 @@ export default function Home() {
                                                 </span>
                                                 <Trophy className={`w-4 h-4 ${index === 0 ? 'text-yellow-400 animate-pulse' : 'text-primary'}`} />
                                             </div>
-                                            <div className="flex items-center justify-between">
+                                            <div className="flex items-center justify-between mb-2">
                                                 <span className="text-xs text-muted-foreground">
                                                     {new Date(winner.timestamp).toLocaleTimeString()}
                                                 </span>
@@ -450,6 +478,19 @@ export default function Home() {
                                                     {winner.amount % 1 === 0 ? winner.amount.toString() : winner.amount.toFixed(2)} $DEGEN
                                                 </span>
                                             </div>
+                                            {winner.txHash && (
+                                                <a
+                                                    href={`https://basescan.org/tx/${winner.txHash}`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="text-xs text-primary/70 hover:text-primary underline transition-colors flex items-center gap-1"
+                                                >
+                                                    <span>View TX</span>
+                                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                                    </svg>
+                                                </a>
+                                            )}
                                         </div>
                                     ))
                                 )}

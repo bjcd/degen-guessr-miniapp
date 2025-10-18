@@ -36,11 +36,11 @@ export function useContract(callbacks?: ContractCallbacks) {
 
                 if (accounts.length > 0) {
                     const signer = await provider.getSigner();
-        const contract = new ethers.Contract(
-            CONTRACT_ADDRESS!,
-            DegenGuessrABI,
-            signer
-        );
+                    const contract = new ethers.Contract(
+                        CONTRACT_ADDRESS!,
+                        DegenGuessrABI,
+                        signer
+                    );
 
                     setProvider(provider);
                     setSigner(signer);
@@ -341,8 +341,20 @@ export function useContract(callbacks?: ContractCallbacks) {
 
         const handleWin = async (player: string, guessedNumber: any, winningNumber: any, amount: any, event: any) => {
             console.log('Win event received!', { player, guessedNumber, winningNumber, amount, event });
-            // Get transaction hash from the event object
-            const txHash = event?.log?.transactionHash || event?.transactionHash || '';
+
+            // Extract the REAL transaction hash from the event receipt
+            // ethers.js v6 provides the transaction hash in the event.log object
+            let txHash = '';
+            try {
+                // Try multiple ways to get the transaction hash
+                txHash = event?.log?.transactionHash ||
+                    event?.transactionHash ||
+                    event?.hash ||
+                    '';
+                console.log('Extracted transaction hash:', txHash);
+            } catch (error) {
+                console.error('Error extracting transaction hash:', error);
+            }
 
             // Get token decimals dynamically
             if (provider) {
@@ -394,6 +406,54 @@ export function useContract(callbacks?: ContractCallbacks) {
         };
     }, [contract, callbacks, provider]);
 
+    // Get past Win events from the blockchain
+    const getPastWinners = async (limit: number = 10): Promise<Array<{
+        player: string;
+        guessedNumber: number;
+        winningNumber: number;
+        amount: string;
+        txHash: string;
+        timestamp: Date;
+    }>> => {
+        if (!contract || !provider) return [];
+        try {
+            // Query Win events from the last 10,000 blocks (roughly last few days on Base)
+            const currentBlock = await provider.getBlockNumber();
+            const fromBlock = Math.max(0, currentBlock - 10000);
+
+            const filter = contract.filters.Win();
+            const events = await contract.queryFilter(filter, fromBlock, currentBlock);
+
+            // Get token decimals for formatting
+            const tokenContractForDecimals = new ethers.Contract(
+                TOKEN_ADDRESS!,
+                ['function decimals() view returns (uint8)'],
+                provider
+            );
+            const decimals = await tokenContractForDecimals.decimals();
+
+            // Process events and get block timestamps
+            const winners = await Promise.all(
+                events.slice(-limit).reverse().map(async (event) => {
+                    const block = await event.getBlock();
+                    return {
+                        player: event.args?.player || '',
+                        guessedNumber: Number(event.args?.guessedNumber || 0),
+                        winningNumber: Number(event.args?.winningNumber || 0),
+                        amount: ethers.formatUnits(event.args?.amount || 0, decimals),
+                        txHash: event.transactionHash,
+                        timestamp: new Date(block.timestamp * 1000)
+                    };
+                })
+            );
+
+            return winners;
+        } catch (error) {
+            console.error('Error getting past winners:', error);
+            return [];
+        }
+    };
+
     return {
         connectWallet,
         getPot,
@@ -402,6 +462,7 @@ export function useContract(callbacks?: ContractCallbacks) {
         getTokenBalance,
         approveTokens,
         makeGuess,
+        getPastWinners,
         isConnected,
         isLoading,
         account,

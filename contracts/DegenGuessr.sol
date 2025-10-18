@@ -5,14 +5,17 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol"; // ✅ Added
 import {VRFConsumerBaseV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/VRFConsumerBaseV2Plus.sol";
 import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
 
 contract DegenGuessr is VRFConsumerBaseV2Plus, ReentrancyGuard, Pausable {
+    using SafeERC20 for IERC20; // ✅ Added
+
     // Chainlink VRF v2.5+ variables
     bytes32 private immutable KEY_HASH;
     uint256 private immutable SUBSCRIPTION_ID;
-    uint16 private constant REQUEST_CONFIRMATIONS = 0; // Base Sepolia supports 0 confs
+    uint16 private constant REQUEST_CONFIRMATIONS = 0; // Base Sepolia: 0 confs; Base Mainnet: use 2+
     uint32 private constant CALLBACK_GAS_LIMIT = 200000; // headroom for fulfill
     uint32 private constant NUM_WORDS = 1;
 
@@ -69,6 +72,11 @@ contract DegenGuessr is VRFConsumerBaseV2Plus, ReentrancyGuard, Pausable {
         bytes32 _keyHash,
         uint256 _subscriptionId
     ) VRFConsumerBaseV2Plus(_vrfCoordinator) {
+        // ✅ Added: Constructor validation
+        require(_token != address(0), "Zero address: token");
+        require(_treasury != address(0), "Zero address: treasury");
+        require(_vrfCoordinator != address(0), "Zero address: VRF");
+
         token = IERC20(_token);
         treasury = _treasury;
         KEY_HASH = _keyHash;
@@ -88,16 +96,16 @@ contract DegenGuessr is VRFConsumerBaseV2Plus, ReentrancyGuard, Pausable {
             "Insufficient token balance"
         );
 
-        // Transfer all tokens to contract first (user must have approved this contract)
-        token.transferFrom(msg.sender, address(this), guessCost);
+        // ✅ Changed: safeTransferFrom instead of transferFrom
+        token.safeTransferFrom(msg.sender, address(this), guessCost);
 
         // Distribute tokens internally
         uint256 potShare = POT_SHARE_UNITS * (10 ** tokenDecimals);
         uint256 treasuryShare = TREASURY_SHARE_UNITS * (10 ** tokenDecimals);
 
         pot += potShare;
-        // Transfer treasury share from contract to treasury
-        token.transfer(treasury, treasuryShare);
+        // ✅ Changed: safeTransfer instead of transfer
+        token.safeTransfer(treasury, treasuryShare);
 
         // Request randomness (VRF v2.5 Plus subscription; pay with LINK, not native)
         VRFV2PlusClient.RandomWordsRequest memory req = VRFV2PlusClient
@@ -135,8 +143,12 @@ contract DegenGuessr is VRFConsumerBaseV2Plus, ReentrancyGuard, Pausable {
         Guess memory guessData = guesses[requestId];
         require(guessData.player != address(0), "Invalid request ID");
 
-        uint8 winningNumber = uint8((randomWords[0] % 100) + 1);
+        // ✅ Changed: Use MAX_GUESS constant instead of hardcoded 100
+        uint8 winningNumber = uint8((randomWords[0] % MAX_GUESS) + 1);
         uint8 guessedNumber = guessData.number;
+
+        // ✅ Changed: Delete guess data BEFORE external calls (CEI pattern)
+        delete guesses[requestId];
 
         if (guessedNumber == winningNumber) {
             // Player wins the entire pot
@@ -144,8 +156,8 @@ contract DegenGuessr is VRFConsumerBaseV2Plus, ReentrancyGuard, Pausable {
             pot = 0; // Reset pot to zero
             playerWins[guessData.player] += winAmount;
 
-            // Transfer winnings to player
-            token.transfer(guessData.player, winAmount);
+            // ✅ Changed: safeTransfer instead of transfer
+            token.safeTransfer(guessData.player, winAmount);
 
             emit Win(guessData.player, guessedNumber, winningNumber, winAmount);
         } else {
@@ -153,8 +165,7 @@ contract DegenGuessr is VRFConsumerBaseV2Plus, ReentrancyGuard, Pausable {
             emit Miss(guessData.player, guessedNumber, winningNumber, pot);
         }
 
-        // Clean up guess data
-        delete guesses[requestId];
+        emit PotUpdated(pot);
     }
 
     // View functions
@@ -167,8 +178,14 @@ contract DegenGuessr is VRFConsumerBaseV2Plus, ReentrancyGuard, Pausable {
     }
 
     // Owner functions
+
+    // ✅ Changed: addToPot now properly transfers tokens to contract
     function addToPot(uint256 amount) external onlyOwner {
         require(amount > 0, "Amount must be greater than 0");
+
+        // Transfer tokens from owner to contract (owner must approve first)
+        token.safeTransferFrom(msg.sender, address(this), amount);
+
         pot += amount;
         emit PotUpdated(pot);
     }
@@ -181,18 +198,28 @@ contract DegenGuessr is VRFConsumerBaseV2Plus, ReentrancyGuard, Pausable {
         _unpause();
     }
 
-    function emergencyWithdraw() external onlyOwner {
+    // ✅ IMPROVED: Protected emergency withdrawal
+    // Only allows withdrawing "excess" funds beyond the pot
+    // This protects player funds while still allowing emergency recovery
+    function emergencyWithdraw() external onlyOwner whenPaused {
         uint256 balance = token.balanceOf(address(this));
-        if (balance > 0) {
-            token.transfer(owner(), balance);
-        }
+
+        // Ensure pot accounting is correct
+        require(balance >= pot, "Invariant violated: balance < pot");
+
+        uint256 excess = balance - pot;
+        require(excess > 0, "No excess funds to withdraw");
+
+        // Only withdraw excess, never touch the pot
+        token.safeTransfer(owner(), excess);
     }
 
-    // Withdraw ETH from contract (for gas refunds or emergency recovery)
+    // ✅ IMPROVED: Withdraw ETH with pause requirement
+    // Protects against accidental drainage during active gameplay
     function withdrawETH(
         address payable to,
         uint256 amount
-    ) external onlyOwner {
+    ) external onlyOwner whenPaused {
         require(to != address(0), "Invalid address");
         require(address(this).balance >= amount, "Insufficient ETH balance");
         (bool success, ) = to.call{value: amount}("");
