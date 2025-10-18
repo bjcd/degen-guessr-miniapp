@@ -25,6 +25,13 @@ interface Winner {
 const DEGEN_TOKEN = process.env.NEXT_PUBLIC_DEGEN_TOKEN_ADDRESS || '0x4ed4E862860beD51a9570b96d89aF5E1B0Efefed';
 const GUESS_GAME_CONTRACT = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || '0x0000000000000000000000000000000000000000';
 
+// Debug logging
+console.log('Environment variables:');
+console.log('NEXT_PUBLIC_CONTRACT_ADDRESS:', process.env.NEXT_PUBLIC_CONTRACT_ADDRESS);
+console.log('NEXT_PUBLIC_DEGEN_TOKEN_ADDRESS:', process.env.NEXT_PUBLIC_DEGEN_TOKEN_ADDRESS);
+console.log('GUESS_GAME_CONTRACT:', GUESS_GAME_CONTRACT);
+console.log('DEGEN_TOKEN:', DEGEN_TOKEN);
+
 export default function Home() {
     const { isReady, user, signIn, signOut, isFarcasterEnvironment } = useFarcaster();
 
@@ -117,6 +124,11 @@ export default function Home() {
 
     const loadContractData = async () => {
         try {
+            console.log('Loading contract data...');
+            console.log('Account:', account);
+            console.log('Contract address:', GUESS_GAME_CONTRACT);
+            console.log('Is demo mode:', isDemoMode);
+            
             const [potValue, balance, guesses, wins, pastWinners] = await Promise.all([
                 getPot(),
                 getTokenBalance(),
@@ -124,6 +136,14 @@ export default function Home() {
                 account ? getPlayerWins(account) : Promise.resolve(0),
                 getPastWinners(10)
             ]);
+            
+            console.log('Contract data loaded:');
+            console.log('Pot value:', potValue);
+            console.log('Balance:', balance);
+            console.log('Guesses:', guesses);
+            console.log('Wins:', wins);
+            console.log('Past winners:', pastWinners);
+            
             setPot(potValue);
             setTokenBalance(balance);
             setTotalGuesses(guesses);
