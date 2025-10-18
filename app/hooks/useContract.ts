@@ -469,17 +469,13 @@ export function useContract(callbacks?: ContractCallbacks) {
             }
         };
 
-        console.log('Setting up contract event listeners...');
-        contract.on('GuessSubmitted', handleGuessSubmitted);
-        contract.on('Win', handleWin);
-        contract.on('Miss', handleMiss);
-        console.log('Contract event listeners set up successfully');
+        // Note: We don't set up event listeners here because:
+        // 1. Farcaster wallet doesn't support eth_newFilter
+        // 2. We use polling in makeGuess() instead for better compatibility
+        console.log('Event listeners disabled (using polling for Farcaster compatibility)');
 
         return () => {
-            console.log('Cleaning up contract event listeners...');
-            contract.off('GuessSubmitted', handleGuessSubmitted);
-            contract.off('Win', handleWin);
-            contract.off('Miss', handleMiss);
+            console.log('No event listeners to clean up');
         };
     }, [contract, callbacks, provider]);
 
