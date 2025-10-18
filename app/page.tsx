@@ -7,6 +7,7 @@ import { Card } from "./components/ui/card";
 import { Trophy, Zap, TrendingUp, Sparkles } from "lucide-react";
 import { useFarcaster } from "./farcaster-provider";
 import { useContract } from "./hooks/useContract";
+import Image from "next/image";
 
 interface Attempt {
     id: number;
@@ -75,16 +76,26 @@ export default function Home() {
                 setLoadingMessage('');
                 setIsWinning(false);
                 // Refresh data after win
-                const [potValue, balance, guesses, wins] = await Promise.all([
+                const [potValue, balance, guesses, wins, pastWinners] = await Promise.all([
                     getPot(),
                     getTokenBalance(),
                     account ? getPlayerGuesses(account) : Promise.resolve(0),
-                    account ? getPlayerWins(account) : Promise.resolve(0)
+                    account ? getPlayerWins(account) : Promise.resolve(0),
+                    getPastWinners()
                 ]);
                 setPot(potValue);
                 setTokenBalance(balance);
                 setTotalGuesses(guesses);
                 setPlayerWins(wins);
+                // Map pastWinners to Winner interface
+                const mappedWinners: Winner[] = pastWinners.map((winner, index) => ({
+                    id: Date.now() + index,
+                    address: winner.player,
+                    amount: parseFloat(winner.amount),
+                    timestamp: winner.timestamp,
+                    txHash: winner.txHash
+                }));
+                setWinners(mappedWinners);
             }, 5000);
         },
         onMiss: async (guessedNumber, winningNumber) => {
@@ -93,16 +104,26 @@ export default function Home() {
                 setLoadingMessage('');
                 setIsWinning(false);
                 // Refresh data after miss
-                const [potValue, balance, guesses, wins] = await Promise.all([
+                const [potValue, balance, guesses, wins, pastWinners] = await Promise.all([
                     getPot(),
                     getTokenBalance(),
                     account ? getPlayerGuesses(account) : Promise.resolve(0),
-                    account ? getPlayerWins(account) : Promise.resolve(0)
+                    account ? getPlayerWins(account) : Promise.resolve(0),
+                    getPastWinners()
                 ]);
                 setPot(potValue);
                 setTokenBalance(balance);
                 setTotalGuesses(guesses);
                 setPlayerWins(wins);
+                // Map pastWinners to Winner interface
+                const mappedWinners: Winner[] = pastWinners.map((winner, index) => ({
+                    id: Date.now() + index,
+                    address: winner.player,
+                    amount: parseFloat(winner.amount),
+                    timestamp: winner.timestamp,
+                    txHash: winner.txHash
+                }));
+                setWinners(mappedWinners);
             }, 3000);
         },
         onError: (message) => {
@@ -288,7 +309,7 @@ export default function Home() {
     };
 
     console.log('Page render - isReady:', isReady, 'user:', user);
-    
+
     if (!isReady) {
         console.log('Showing loading screen');
         return (
@@ -307,11 +328,11 @@ export default function Home() {
                 {/* Header with Logo */}
                 <div className="text-center space-y-3">
                     <div className="flex items-center justify-center gap-3">
-                        <img src="/degen-logo.png" alt="Degen Hat" className="w-16 h-16 object-contain animate-[bounce_2s_ease-in-out_infinite]" />
+                        <Image src="/degen-logo.png" alt="Degen Hat" width={64} height={64} className="w-16 h-16 object-contain animate-[bounce_2s_ease-in-out_infinite]" />
                         <h1 className="text-6xl font-black bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent neon-glow">
                             DEGEN GUESSR
                         </h1>
-                        <img src="/degen-logo.png" alt="Degen Hat" className="w-16 h-16 object-contain animate-[bounce_2s_ease-in-out_infinite] scale-x-[-1]" />
+                        <Image src="/degen-logo.png" alt="Degen Hat" width={64} height={64} className="w-16 h-16 object-contain animate-[bounce_2s_ease-in-out_infinite] scale-x-[-1]" />
                     </div>
                     <p className="text-muted-foreground text-sm font-medium">Guess the number. Win the pot. Be legendary.</p>
 
@@ -386,7 +407,7 @@ export default function Home() {
                                 className="w-full h-16 bg-gradient-to-r from-primary to-secondary hover:from-primary-glow hover:to-secondary-glow text-white font-black text-xl transition-all duration-300 neon-button rounded-2xl flex items-center justify-center gap-3"
                                 disabled={isWinning || isLoading}
                             >
-                                <img src="/degen-logo.png" alt="Hat" className="w-8 h-8 object-contain" />
+                                <Image src="/degen-logo.png" alt="Hat" width={32} height={32} className="w-8 h-8 object-contain" />
                                 <Zap className="w-6 h-6" />
                                 {isWinning ? "PROCESSING..." : isDemoMode ? "GUESS FOR 100 $DEGEN" : "MAKE GUESS"}
                                 <Zap className="w-6 h-6" />
