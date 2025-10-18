@@ -436,11 +436,13 @@ export function useContract(callbacks?: ContractCallbacks) {
             const winners = await Promise.all(
                 events.slice(-limit).reverse().map(async (event) => {
                     const block = await event.getBlock();
+                    // Type guard to check if event is EventLog (has args property)
+                    const args = 'args' in event ? event.args : null;
                     return {
-                        player: event.args?.player || '',
-                        guessedNumber: Number(event.args?.guessedNumber || 0),
-                        winningNumber: Number(event.args?.winningNumber || 0),
-                        amount: ethers.formatUnits(event.args?.amount || 0, decimals),
+                        player: args?.player || '',
+                        guessedNumber: Number(args?.guessedNumber || 0),
+                        winningNumber: Number(args?.winningNumber || 0),
+                        amount: ethers.formatUnits(args?.amount || 0, decimals),
                         txHash: event.transactionHash,
                         timestamp: new Date(block.timestamp * 1000)
                     };
