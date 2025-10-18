@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     },
     // Farcaster MiniApp Embed (single JSON meta tag, no mixing with Frames v1)
     other: {
-        'fc:miniapp': '{"version":"1","imageUrl":"https://degen-guessr-miniapp.vercel.app/miniapp-icon-large.png","button":{"title":"Play Degen Guessr","action":{"type":"launch_frame","name":"Degen Guessr","url":"https://degen-guessr-miniapp.vercel.app","splashImageUrl":"https://degen-guessr-miniapp.vercel.app/miniapp-icon.png","splashBackgroundColor":"d26cf8"}}}',
+        'fc:miniapp': '{"version":"1","imageUrl":"https://degen-guessr-miniapp.vercel.app/miniapp-icon-large.png","button":{"title":"Play Degen Guessr","action":{"type":"launch_frame","name":"Degen Guessr","url":"https://degen-guessr-miniapp.vercel.app","splashImageUrl":"https://degen-guessr-miniapp.vercel.app/miniapp-icon.png","splashBackgroundColor":"#d26cf8"}}}',
     },
 };
 

@@ -12,7 +12,7 @@
         "imageUrl": "https://degen-guessr-miniapp.vercel.app/miniapp-icon-large.png",
         "buttonTitle": "Play Degen Guessr",
         "splashImageUrl": "https://degen-guessr-miniapp.vercel.app/miniapp-icon.png",
-        "splashBackgroundColor": "d26cf8",
+        "splashBackgroundColor": "#d26cf8",
         "subtitle": "Guess the number. Win the pot.",
         "description": "Guess a number between 1 and 100 and win the entire Degen pot! Uses Chainlink VRF for provably fair randomness.",
         "primaryCategory": "games",
