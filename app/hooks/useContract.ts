@@ -269,56 +269,6 @@ export function useContract(callbacks?: ContractCallbacks) {
         try {
             setIsLoading(true);
 
-            // Use read-only provider for all read operations (Farcaster-compatible)
-            const readOnlyTokenContract = new ethers.Contract(
-                TOKEN_ADDRESS!,
-                [
-                    'function allowance(address owner, address spender) view returns (uint256)',
-                    'function decimals() view returns (uint8)',
-                    'function balanceOf(address owner) view returns (uint256)'
-                ],
-                rpcProvider
-            );
-
-            const decimals = await readOnlyTokenContract.decimals();
-            const requiredAmount = 100 * (10 ** Number(decimals));
-            const allowance = await readOnlyTokenContract.allowance(account, CONTRACT_ADDRESS!);
-            const userBalance = await readOnlyTokenContract.balanceOf(account);
-
-            console.log('Required amount:', requiredAmount.toString());
-            console.log('Current allowance:', allowance.toString());
-            console.log('User balance:', userBalance.toString());
-            console.log('User has enough balance?', userBalance >= BigInt(requiredAmount));
-
-            if (allowance < BigInt(requiredAmount)) {
-                if (callbacks?.onError) {
-                    callbacks.onError('Please approve tokens first! You need to approve 100 DEGEN to the contract.');
-                }
-                setIsLoading(false);
-                return false;
-            }
-
-            // Check if contract is paused (use read-only contract)
-            const isPaused = await readOnlyContract.paused();
-            console.log('Contract paused?', isPaused);
-
-            // Check contract's USDC balance
-            const contractBalance = await readOnlyTokenContract.balanceOf(CONTRACT_ADDRESS!);
-            console.log('Contract USDC balance before guess:', contractBalance.toString());
-
-            // Check contract's ETH balance (needed for VRF)
-            const contractEthBalance = await rpcProvider.getBalance(CONTRACT_ADDRESS!);
-            console.log('Contract ETH balance:', ethers.formatEther(contractEthBalance), 'ETH');
-
-            // Check if there are any pending VRF requests (use read-only contract)
-            try {
-                const pendingRequests = await readOnlyContract.getPendingRequests();
-                console.log('Pending VRF requests:', pendingRequests);
-            } catch (error) {
-                console.log('No getPendingRequests function or error:', error);
-            }
-
-            // Make the guess
             console.log('Making guess...');
             console.log('Guess number:', number);
             console.log('Contract address:', CONTRACT_ADDRESS);
