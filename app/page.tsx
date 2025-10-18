@@ -128,7 +128,7 @@ export default function Home() {
             console.log('Account:', account);
             console.log('Contract address:', GUESS_GAME_CONTRACT);
             console.log('Is demo mode:', isDemoMode);
-            
+
             const [potValue, balance, guesses, wins, pastWinners] = await Promise.all([
                 getPot(),
                 getTokenBalance(),
@@ -136,14 +136,14 @@ export default function Home() {
                 account ? getPlayerWins(account) : Promise.resolve(0),
                 getPastWinners(10)
             ]);
-            
+
             console.log('Contract data loaded:');
             console.log('Pot value:', potValue);
             console.log('Balance:', balance);
             console.log('Guesses:', guesses);
             console.log('Wins:', wins);
             console.log('Past winners:', pastWinners);
-            
+
             setPot(potValue);
             setTokenBalance(balance);
             setTotalGuesses(guesses);
