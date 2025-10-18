@@ -20,23 +20,10 @@ export const metadata: Metadata = {
     },
     // Farcaster MiniApp Embed metadata
     other: {
-        'fc:miniapp': JSON.stringify({
-            version: "1",
-            imageUrl: "https://degen-guessr-miniapp.vercel.app/miniapp-screenshot.png",
-            button: {
-                title: "Play Degen Guessr",
-                action: {
-                    type: "launch_frame",
-                    name: "Degen Guessr",
-                    url: "https://degen-guessr-miniapp.vercel.app",
-                    splashImageUrl: "https://degen-guessr-miniapp.vercel.app/miniapp-icon.png",
-                    splashBackgroundColor: "#d26cf8"
-                }
-            }
-        }),
+        'fc:miniapp': '{"version":"1","imageUrl":"https://degen-guessr-miniapp.vercel.app/miniapp-icon-large.png","button":{"title":"Play Degen Guessr","action":{"type":"launch_frame","name":"Degen Guessr","url":"https://degen-guessr-miniapp.vercel.app","splashImageUrl":"https://degen-guessr-miniapp.vercel.app/miniapp-icon.png","splashBackgroundColor":"#d26cf8"}}}',
         // Backward compatibility with fc:frame
         'fc:frame': 'vNext',
-        'fc:frame:image': "https://degen-guessr-miniapp.vercel.app/miniapp-screenshot.png",
+        'fc:frame:image': "https://degen-guessr-miniapp.vercel.app/miniapp-icon-large.png",
         'fc:frame:button:1': 'Play Game',
         'fc:frame:button:1:action': 'link',
         'fc:frame:button:1:target': "https://degen-guessr-miniapp.vercel.app",
