@@ -29,7 +29,7 @@ export function FarcasterProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         const initFarcaster = async () => {
             console.log('Initializing Farcaster provider...');
-            
+
             // Check if we're in a Farcaster environment
             const isInFarcaster = typeof window !== 'undefined' &&
                 (window.location !== window.parent.location ||

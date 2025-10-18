@@ -26,8 +26,11 @@ export const metadata: Metadata = {
             button: {
                 title: "Play Degen Guessr",
                 action: {
-                    type: "link",
-                    url: "https://degen-guessr-miniapp.vercel.app"
+                    type: "launch_frame",
+                    name: "Degen Guessr",
+                    url: "https://degen-guessr-miniapp.vercel.app",
+                    splashImageUrl: "https://degen-guessr-miniapp.vercel.app/miniapp-icon.png",
+                    splashBackgroundColor: "#d26cf8"
                 }
             }
         }),
