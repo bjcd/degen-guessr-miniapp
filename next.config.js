@@ -10,7 +10,7 @@ const nextConfig = {
                 headers: [
                     {
                         key: 'Content-Security-Policy',
-                        value: "frame-ancestors 'self' https://*.farcaster.xyz https://warpcast.com",
+                        value: "frame-ancestors *",
                     },
                 ],
             },
