@@ -67,7 +67,7 @@ Web App Flow:              MiniApp Flow:
          ├──── guess(number) ──────┤
          │                         │
          └─────► Same Contract ◄───┘
-                 (0xAe5f686A...)
+                 (0x743c74...)
 ```
 
 **The contract only sees:**
@@ -280,7 +280,7 @@ const { user, isFarcasterEnvironment } = useFarcaster();
     "tags": ["game", "degen", "base", "vrf", "guessing"],
     "contracts": {
         "base": {
-            "address": "0xAe5f686AaA1E9A4caFbBfBE6DAC57377b2064eBb",
+            "address": "0x743c74D3b77e3576d39aa00c5435D1931E0DAAD7",
             "chainId": 8453
         }
     },

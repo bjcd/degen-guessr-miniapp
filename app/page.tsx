@@ -186,7 +186,7 @@ export default function Home() {
                 setTokenBalance(balance);
                 setTotalGuesses(guesses);
                 setPlayerWins(wins);
-
+                
                 console.log('State updated - totalGuesses:', guesses, 'playerWins:', wins);
             } catch (error) {
                 console.error('Error loading user data:', error);
@@ -199,7 +199,7 @@ export default function Home() {
             loadedAccountRef.current = account;
             loadUserData();
         }
-    }, [isConnected, isDemoMode, account]);
+    }, [isConnected, isDemoMode, account, getTokenBalance, getPlayerGuesses, getPlayerWins]);
 
     const handleApprove = async () => {
         if (!isConnected) {

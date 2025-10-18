@@ -7,20 +7,36 @@ const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
     title: 'DEGEN Guess 1-100',
-    description: 'A fun and fair guessing game using $DEGEN token on Base',
+    description: 'A fun and fair guessing game using $DEGEN token on Base network. Guess a number between 1-100 and win the entire pot!',
+    metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://degen-guessr.vercel.app'),
     icons: {
-        icon: '/icon.png',
+        icon: '/degen-logo.png',
     },
     openGraph: {
         title: 'DEGEN Guess 1-100',
-        description: 'Guess a number between 1-100 and win the pot!',
+        description: 'A fair guessing game on Base using $DEGEN token. Guess 1-100 to win!',
         images: ['/og-image.png'],
+        type: 'website',
     },
+    // Farcaster MiniApp Embed metadata
     other: {
+        'fc:miniapp': JSON.stringify({
+            version: "1",
+            imageUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://degen-guessr.vercel.app'}/og-image.png`,
+            button: {
+                title: "DEGEN Guess 1-100",
+                action: {
+                    type: "link",
+                    url: process.env.NEXT_PUBLIC_APP_URL || 'https://degen-guessr.vercel.app'
+                }
+            }
+        }),
+        // Backward compatibility with fc:frame
         'fc:frame': 'vNext',
-        'fc:frame:image': '/og-image.png',
+        'fc:frame:image': `${process.env.NEXT_PUBLIC_APP_URL || 'https://degen-guessr.vercel.app'}/og-image.png`,
         'fc:frame:button:1': 'Play Game',
-        'fc:frame:post_url': '/api/frame',
+        'fc:frame:button:1:action': 'link',
+        'fc:frame:button:1:target': process.env.NEXT_PUBLIC_APP_URL || 'https://degen-guessr.vercel.app',
     },
 };
 

@@ -1,0 +1,17 @@
+type Win @entity(immutable: true) {
+  id: ID! # transaction hash + log index
+  tx: Bytes!
+  block: BigInt!
+  timestamp: BigInt!
+  player: Bytes!
+  guessedNumber: Int!
+  winningNumber: Int!
+  amount: BigInt!
+}
+
+type GameStats @entity(immutable: false) {
+  id: ID! # "game-stats"
+  totalWins: Int!
+  totalPot: BigInt!
+  lastUpdated: BigInt!
+}

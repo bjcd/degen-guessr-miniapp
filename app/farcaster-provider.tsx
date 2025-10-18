@@ -46,7 +46,7 @@ export function FarcasterProvider({ children }: { children: ReactNode }) {
                     try {
                         console.log('Initializing Farcaster SDK...');
                         await sdk.actions.ready();
-                        console.log('Farcaster SDK ready');
+                        console.log('Farcaster SDK ready - splash screen hidden');
                     } catch (sdkError) {
                         console.warn('Farcaster SDK not available:', sdkError);
                     }
@@ -71,28 +71,44 @@ export function FarcasterProvider({ children }: { children: ReactNode }) {
     const signIn = async () => {
         try {
             if (isFarcasterEnvironment) {
-                // Use real Farcaster authentication
+                // Get real Farcaster auth token
+                console.log('Authenticating with Farcaster...');
                 const { token } = await sdk.quickAuth.getToken();
-                console.log('Farcaster token:', token);
+                console.log('Farcaster token received');
 
-                // For now, mock user data - in production you'd validate the token
+                // Fetch user context
+                const context = await sdk.context;
+                const userProfile = context.user;
+
+                console.log('Farcaster user profile:', userProfile);
+
                 setUser({
-                    fid: 12345,
-                    username: 'farcasteruser',
-                    displayName: 'Farcaster User',
-                    pfpUrl: 'https://via.placeholder.com/150'
+                    fid: userProfile.fid,
+                    username: userProfile.username || 'Unknown',
+                    displayName: userProfile.displayName || 'Farcaster User',
+                    pfpUrl: userProfile.pfpUrl || 'https://via.placeholder.com/150'
                 });
+
+                console.log('Authenticated Farcaster user:', userProfile);
             } else {
-                // Mock sign in for development
+                // Mock for web app (no change to existing behavior)
+                console.log('Web app mode: Using mock authentication');
                 setUser({
-                    fid: 12345,
-                    username: 'degenuser',
-                    displayName: 'Degen User',
+                    fid: 0,
+                    username: 'webuser',
+                    displayName: 'Web User',
                     pfpUrl: 'https://via.placeholder.com/150'
                 });
             }
         } catch (error) {
             console.error('Sign in failed:', error);
+            // Fallback to mock data if Farcaster auth fails
+            setUser({
+                fid: 0,
+                username: 'guest',
+                displayName: 'Guest User',
+                pfpUrl: 'https://via.placeholder.com/150'
+            });
         }
     };
 
@@ -107,17 +123,32 @@ export function FarcasterProvider({ children }: { children: ReactNode }) {
     const getEthereumProvider = async () => {
         try {
             if (isFarcasterEnvironment && typeof window !== 'undefined') {
-                // Try to get the real Ethereum provider from Farcaster
-                return (window as any).ethereum || (window as any).farcaster?.ethereum;
-            } else {
-                // Fallback for development
-                return (window as any).ethereum || {
-                    request: async ({ method, params }: { method: string; params?: any[] }) => {
-                        console.log('Mock provider request:', method, params);
-                        return [];
+                // Use Farcaster's embedded wallet provider
+                console.log('Attempting to get Farcaster embedded wallet...');
+                try {
+                    const fcProvider = await sdk.wallet.ethProvider;
+                    if (fcProvider) {
+                        console.log('Using Farcaster embedded wallet');
+                        return fcProvider;
                     }
-                };
+                } catch (fcError) {
+                    console.warn('Farcaster wallet not available:', fcError);
+                }
+
+                // Fallback to window.ethereum if Farcaster wallet not available
+                if ((window as any).ethereum) {
+                    console.log('Using window.ethereum as fallback');
+                    return (window as any).ethereum;
+                }
+            } else {
+                // Use browser wallet (MetaMask, etc.) for web app
+                if (typeof window !== 'undefined' && (window as any).ethereum) {
+                    console.log('Using browser wallet');
+                    return (window as any).ethereum;
+                }
             }
+
+            throw new Error('No wallet provider found');
         } catch (error) {
             console.error('Failed to get Ethereum provider:', error);
             return null;

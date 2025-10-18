@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
 import DegenGuessrABI from '../contracts/DegenGuessr.json';
+import { useFarcaster } from '../farcaster-provider';
+import { getRecentWinners, getGameStats, type Win as GraphWin } from '../lib/graphql';
 
 const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS;
 const TOKEN_ADDRESS = process.env.NEXT_PUBLIC_DEGEN_TOKEN_ADDRESS;
@@ -20,6 +22,7 @@ interface ContractCallbacks {
 }
 
 export function useContract(callbacks?: ContractCallbacks) {
+    const { getEthereumProvider, isFarcasterEnvironment } = useFarcaster();
     const [provider, setProvider] = useState<ethers.BrowserProvider | null>(null);
     const [signer, setSigner] = useState<ethers.JsonRpcSigner | null>(null);
     const [contract, setContract] = useState<ethers.Contract | null>(null);
@@ -36,45 +39,56 @@ export function useContract(callbacks?: ContractCallbacks) {
         try {
             setIsLoading(true);
 
-            if (typeof window.ethereum !== 'undefined') {
-                const provider = new ethers.BrowserProvider(window.ethereum);
-                const accounts = await provider.send("eth_requestAccounts", []);
+            // Get the appropriate provider based on environment
+            const ethProvider = await getEthereumProvider();
 
-                if (accounts.length > 0) {
-                    // Check if user is on Base Mainnet (chainId: 8453)
-                    const network = await provider.getNetwork();
-                    console.log('Current network:', network);
-
-                    if (Number(network.chainId) !== 8453) {
-                        if (callbacks?.onError) {
-                            callbacks.onError('Please switch to Base Mainnet to use this app. Current network: ' + network.name);
-                        }
-                        setIsLoading(false);
-                        return;
-                    }
-
-                    const signer = await provider.getSigner();
-                    const contract = new ethers.Contract(
-                        CONTRACT_ADDRESS!,
-                        DegenGuessrABI,
-                        signer
-                    );
-
-                    setProvider(provider);
-                    setSigner(signer);
-                    setContract(contract);
-                    setAccount(accounts[0]);
-                    setIsConnected(true);
+            if (!ethProvider) {
+                if (callbacks?.onError) {
+                    callbacks.onError('No wallet provider found. Please install a wallet or use Farcaster.');
                 }
+                return;
+            }
+
+            console.log('Using provider:', isFarcasterEnvironment ? 'Farcaster' : 'Browser');
+            const provider = new ethers.BrowserProvider(ethProvider);
+            const accounts = await provider.send("eth_requestAccounts", []);
+
+            if (accounts.length > 0) {
+                // Check if user is on Base Mainnet (chainId: 8453)
+                const network = await provider.getNetwork();
+                console.log('Current network:', network);
+
+                if (Number(network.chainId) !== 8453) {
+                    if (callbacks?.onError) {
+                        callbacks.onError('Please switch to Base Mainnet to use this app. Current network: ' + network.name);
+                    }
+                    setIsLoading(false);
+                    return;
+                }
+
+                const signer = await provider.getSigner();
+                const contract = new ethers.Contract(
+                    CONTRACT_ADDRESS!,
+                    DegenGuessrABI,
+                    signer
+                );
+
+                setProvider(provider);
+                setSigner(signer);
+                setContract(contract);
+                setAccount(accounts[0]);
+                setIsConnected(true);
+
+                console.log('Wallet connected:', accounts[0], 'Environment:', isFarcasterEnvironment ? 'MiniApp' : 'Web');
             } else {
                 if (callbacks?.onError) {
-                    callbacks.onError('Please install MetaMask!');
+                    callbacks.onError('No accounts found');
                 }
             }
         } catch (error) {
             console.error('Error connecting wallet:', error);
             if (callbacks?.onError) {
-                callbacks.onError('Failed to connect wallet');
+                callbacks.onError('Failed to connect wallet: ' + (error as Error).message);
             }
         } finally {
             setIsLoading(false);
@@ -479,10 +493,60 @@ export function useContract(callbacks?: ContractCallbacks) {
         timestamp: Date;
     }>> => {
         try {
-            console.log('Getting past winners...');
-            // Query Win events from the last 10,000 blocks (roughly last few days on Base)
+            console.log('Getting past winners from The Graph...');
+
+            // Get token decimals for formatting
+            let decimals = 18; // Default to 18
+            try {
+                const tokenContractForDecimals = new ethers.Contract(
+                    TOKEN_ADDRESS!,
+                    ['function decimals() view returns (uint8)'],
+                    rpcProvider
+                );
+                decimals = await tokenContractForDecimals.decimals();
+                console.log('Token decimals for past winners:', decimals);
+            } catch (decimalsError) {
+                console.warn('Could not get token decimals for past winners, using default 18:', decimalsError);
+            }
+
+            // Query The Graph for recent winners
+            const graphWins = await getRecentWinners(limit);
+            console.log('Found', graphWins.length, 'winners from The Graph');
+
+            // Convert GraphQL results to our format
+            const winners = graphWins.map((win: GraphWin) => ({
+                player: win.player,
+                guessedNumber: win.guessedNumber,
+                winningNumber: win.winningNumber,
+                amount: ethers.formatUnits(win.amount, decimals),
+                txHash: win.tx,
+                timestamp: new Date(parseInt(win.timestamp) * 1000)
+            }));
+
+            console.log('Processed', winners.length, 'winners from The Graph');
+            return winners;
+        } catch (error) {
+            console.error('Error getting past winners from The Graph:', error);
+            // Fallback to RPC if GraphQL fails
+            console.log('Falling back to RPC query...');
+            return await getPastWinnersRPC(limit);
+        }
+    };
+
+    // Fallback RPC method (keeping the working version as backup)
+    const getPastWinnersRPC = async (limit: number = 10): Promise<Array<{
+        player: string;
+        guessedNumber: number;
+        winningNumber: number;
+        amount: string;
+        txHash: string;
+        timestamp: Date;
+    }>> => {
+        try {
+            console.log('Getting past winners from RPC (fallback)...');
+            // Query Win events from last 10,000 blocks (this approach was working)
             const currentBlock = await rpcProvider.getBlockNumber();
-            const fromBlock = Math.max(0, currentBlock - 10000);
+            const fromBlock = Math.max(0, currentBlock - 10000); // Last 10,000 blocks
             console.log('Querying events from block', fromBlock, 'to', currentBlock);
 
             const filter = readOnlyContract.filters.Win();
@@ -520,10 +584,10 @@ export function useContract(callbacks?: ContractCallbacks) {
                 })
             );
 
-            console.log('Processed', winners.length, 'winners');
+            console.log('Processed', winners.length, 'winners from RPC');
             return winners;
         } catch (error) {
-            console.error('Error getting past winners:', error);
+            console.error('Error getting past winners from RPC:', error);
             return [];
         }
     };

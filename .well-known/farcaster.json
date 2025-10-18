@@ -1,20 +1,20 @@
 {
     "frame": {
+        "name": "Degen Guessr",
         "version": "1",
-        "name": "DEGEN Guess 1-100",
-        "subtitle": "A fun number guessing game",
-        "description": "Guess a number between 1 and 100 and win the entire pot! Each guess costs 100 $DEGEN. Uses Chainlink VRF for provably fair randomness.",
-        "iconUrl": "https://degen-guessr.vercel.app/icon.png",
+        "iconUrl": "https://degen-guessr.vercel.app/public/miniapp-icon.png",
         "homeUrl": "https://degen-guessr.vercel.app",
-        "splashImageUrl": "https://degen-guessr.vercel.app/splash.png",
-        "splashBackgroundColor": "#fbbf24",
-        "heroImageUrl": "https://degen-guessr.vercel.app/hero.png",
-        "tagline": "Test your luck and win big!",
-        "screenshotUrls": [
-            "https://degen-guessr.vercel.app/screenshot1.png",
-            "https://degen-guessr.vercel.app/screenshot2.png"
-        ],
+        "imageUrl": "https://degen-guessr.vercel.app/public/miniapp-icon.png",
+        "buttonTitle": "Play Degen Guessr",
+        "splashImageUrl": "https://degen-guessr.vercel.app/public/miniapp-icon.png",
+        "splashBackgroundColor": "#d26cf8",
+        "subtitle": "Guess the number. Win the pot. Be legendary.",
+        "description": "Guess a number between 1 and 100 and win the entire Degen pot! Uses Chainlink VRF for provably fair randomness.",
         "primaryCategory": "games",
+        "screenshotUrls": [
+            "https://degen-guessr.vercel.app/public/miniapp-screenshot.png"
+        ],
+        "heroImageUrl": "https://degen-guessr.vercel.app/hero.png",
         "tags": [
             "guessing",
             "fun",
@@ -23,6 +23,11 @@
             "base",
             "vrf"
         ],
-        "webhookUrl": "https://degen-guessr.vercel.app/api/webhook"
+        "tagline": "Test your luck and win big!",
+        "ogImageUrl": "https://degen-guessr.vercel.app/public/miniapp-icon.png",
+        "ogTitle": "Degen Guessr",
+        "requiredCapabilities": [
+            "wallet"
+        ]
     }
 }
