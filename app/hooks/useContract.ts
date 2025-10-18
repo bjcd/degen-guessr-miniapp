@@ -272,17 +272,17 @@ export function useContract(callbacks?: ContractCallbacks) {
                     if (winEvents.length > 0) {
                         console.log('Polling found Win event!', winEvents[winEvents.length - 1]);
                         const event = winEvents[winEvents.length - 1]; // Get the latest one
-                        const args = event.args;
-                        if (args && callbacks?.onWin) {
+                        // Type guard to check if event is EventLog (has args property)
+                        if ('args' in event && event.args && callbacks?.onWin) {
                             const tokenContractForDecimals = new ethers.Contract(
                                 TOKEN_ADDRESS!,
                                 ['function decimals() view returns (uint8)'],
                                 provider!
                             );
                             const decimals = await tokenContractForDecimals.decimals();
-                            const formattedAmount = ethers.formatUnits(args[3], decimals); // amount is 4th arg
+                            const formattedAmount = ethers.formatUnits(event.args[3], decimals); // amount is 4th arg
                             const txHash = event.transactionHash || '';
-                            callbacks.onWin(Number(args[1]), formattedAmount, args[0], txHash);
+                            callbacks.onWin(Number(event.args[1]), formattedAmount, event.args[0], txHash);
                         }
                         return; // Stop polling
                     }
@@ -294,9 +294,9 @@ export function useContract(callbacks?: ContractCallbacks) {
                     if (missEvents.length > 0) {
                         console.log('Polling found Miss event!', missEvents[missEvents.length - 1]);
                         const event = missEvents[missEvents.length - 1]; // Get the latest one
-                        const args = event.args;
-                        if (args && callbacks?.onMiss) {
-                            callbacks.onMiss(Number(args[1]), Number(args[2])); // guessedNumber, winningNumber
+                        // Type guard to check if event is EventLog (has args property)
+                        if ('args' in event && event.args && callbacks?.onMiss) {
+                            callbacks.onMiss(Number(event.args[1]), Number(event.args[2])); // guessedNumber, winningNumber
                         }
                         return; // Stop polling
                     }
