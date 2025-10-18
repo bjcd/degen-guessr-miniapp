@@ -459,16 +459,9 @@ export default function Home() {
                         </Card>
 
                         {/* Stats */}
-                        <div className="grid grid-cols-3 gap-4">
-                            <Card className="glass-card gradient-border p-5">
-                                <div className="flex items-center gap-2 text-muted-foreground text-xs font-semibold mb-2">
-                                    <TrendingUp className="w-4 h-4" />
-                                    <span>TOTAL GUESSES</span>
-                                </div>
-                                <div className="text-4xl font-black text-foreground">{totalGuesses}</div>
-                            </Card>
-
-                            <Card className="glass-card gradient-border p-5">
+                        <div className="space-y-4">
+                            {/* Balance - Full width on mobile, part of grid on desktop */}
+                            <Card className="glass-card gradient-border p-5 md:hidden">
                                 <div className="flex items-center gap-2 text-muted-foreground text-xs font-semibold mb-2">
                                     <Zap className="w-4 h-4" />
                                     <span>YOUR BALANCE</span>
@@ -476,13 +469,33 @@ export default function Home() {
                                 <div className="text-4xl font-black text-foreground">{Math.floor(tokenBalance)}</div>
                             </Card>
 
-                            <Card className="glass-card gradient-border p-5">
-                                <div className="flex items-center gap-2 text-muted-foreground text-xs font-semibold mb-2">
-                                    <Trophy className="w-4 h-4 text-yellow-400" />
-                                    <span>TOTAL WINNINGS</span>
-                                </div>
-                                <div className="text-4xl font-black text-foreground">{playerWins % 1 === 0 ? playerWins.toString() : playerWins.toFixed(2)}</div>
-                            </Card>
+                            {/* Desktop: 3 columns, Mobile: 2 columns for guesses and winnings */}
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                <Card className="glass-card gradient-border p-5">
+                                    <div className="flex items-center gap-2 text-muted-foreground text-xs font-semibold mb-2">
+                                        <TrendingUp className="w-4 h-4" />
+                                        <span>TOTAL GUESSES</span>
+                                    </div>
+                                    <div className="text-4xl font-black text-foreground">{totalGuesses}</div>
+                                </Card>
+
+                                {/* Balance - Hidden on mobile, shown on desktop */}
+                                <Card className="glass-card gradient-border p-5 hidden md:block">
+                                    <div className="flex items-center gap-2 text-muted-foreground text-xs font-semibold mb-2">
+                                        <Zap className="w-4 h-4" />
+                                        <span>YOUR BALANCE</span>
+                                    </div>
+                                    <div className="text-4xl font-black text-foreground">{Math.floor(tokenBalance)}</div>
+                                </Card>
+
+                                <Card className="glass-card gradient-border p-5">
+                                    <div className="flex items-center gap-2 text-muted-foreground text-xs font-semibold mb-2">
+                                        <Trophy className="w-4 h-4 text-yellow-400" />
+                                        <span>TOTAL WINNINGS</span>
+                                    </div>
+                                    <div className="text-4xl font-black text-foreground">{playerWins % 1 === 0 ? playerWins.toString() : playerWins.toFixed(2)}</div>
+                                </Card>
+                            </div>
                         </div>
 
                         {/* Recent Attempts */}
