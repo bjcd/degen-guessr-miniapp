@@ -578,10 +578,10 @@ export default function Home() {
 
                         {/* Mode Switch Card */}
                         <Card className="glass-card gradient-border p-6">
-                            <div className="flex items-center justify-between">
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                                 <div className="flex items-center gap-3">
                                     <div className="text-2xl">🎩</div>
-                                    <div>
+                                    <div className="flex-1">
                                         <div className="flex items-center gap-2 text-primary font-bold text-lg">
                                             Degen Mode
                                             <span className="text-green-400 text-sm">✓</span>
@@ -590,13 +590,13 @@ export default function Home() {
                                             You're in Degen Mode. Switch to Super Degen Mode for better odds, higher stakes.
                                         </p>
                                         <p className="text-xs text-muted-foreground/70 mt-1">
-                                            1 in 10 chances to hit the pot
+                                            1 in 100 chances to hit the pot
                                         </p>
                                     </div>
                                 </div>
                                 <Link
                                     href="/super-degen"
-                                    className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 text-white font-bold px-6 py-3 rounded-xl transition-all duration-300 text-sm whitespace-nowrap"
+                                    className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 text-white font-bold px-6 py-3 rounded-xl transition-all duration-300 text-sm whitespace-nowrap w-full sm:w-auto text-center"
                                 >
                                     Go Super Degen ⚡️🎩
                                 </Link>
