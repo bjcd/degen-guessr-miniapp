@@ -7,7 +7,7 @@
     "miniapp": {
         "name": "Degen Guessr",
         "version": "1",
-        "iconUrl": "https://degenguessr.xyz/miniapp-icon.png",
+        "iconUrl": "https://degenguessr.xyz/icon.png",
         "homeUrl": "https://degenguessr.xyz",
         "imageUrl": "https://degenguessr.xyz/miniapp-icon-large.png",
         "buttonTitle": "Play Degen Guessr",
