@@ -19,14 +19,14 @@
         "screenshotUrls": [
             "https://degenguessr.xyz/miniapp-screenshot.png"
         ],
-        "heroImageUrl": "https://degenguessr.xyz/hero.png",
+        "heroImageUrl": "https://degenguessr.xyz/miniapp-icon-large.png",
         "tags": [
             "guessing",
             "fun",
             "degen"
         ],
         "tagline": "Test your luck and win big!",
-        "ogImageUrl": "https://degenguessr.xyz/miniapp-icon.png",
+        "ogImageUrl": "https://degenguessr.xyz/icon.png",
         "ogTitle": "Degen Guessr",
         "requiredCapabilities": [
             "wallet.getEthereumProvider",
