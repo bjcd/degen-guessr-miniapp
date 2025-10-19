@@ -203,6 +203,45 @@ export function useContract(callbacks?: ContractCallbacks) {
         }
     };
 
+    // Get current allowance
+    const getAllowance = async (): Promise<number> => {
+        if (!account) {
+            console.log('No account connected, returning 0 allowance');
+            return 0;
+        }
+
+        try {
+            console.log('Getting allowance from:', TOKEN_ADDRESS, 'for account:', account, 'spender:', CONTRACT_ADDRESS);
+            const tokenContract = new ethers.Contract(
+                TOKEN_ADDRESS!,
+                [
+                    'function allowance(address owner, address spender) view returns (uint256)',
+                    'function decimals() view returns (uint8)'
+                ],
+                rpcProvider
+            );
+
+            const allowance = await tokenContract.allowance(account, CONTRACT_ADDRESS!);
+            console.log('Raw allowance:', allowance.toString());
+
+            // Try to get decimals, but don't fail if it doesn't work
+            let decimals = 18; // Default to 18
+            try {
+                decimals = await tokenContract.decimals();
+                console.log('Token decimals:', decimals);
+            } catch (decimalsError) {
+                console.warn('Could not get token decimals, using default 18:', decimalsError);
+            }
+
+            const formattedAllowance = Number(ethers.formatUnits(allowance, decimals));
+            console.log('Formatted allowance:', formattedAllowance);
+            return formattedAllowance;
+        } catch (error) {
+            console.error('Error getting allowance:', error);
+            return 0;
+        }
+    };
+
     // Approve tokens
     const approveTokens = async (amount: string): Promise<boolean> => {
         if (!signer || !account) return false;
@@ -561,6 +600,7 @@ export function useContract(callbacks?: ContractCallbacks) {
         getPlayerWins,
         getPlayerGuesses,
         getTokenBalance,
+        getAllowance,
         approveTokens,
         makeGuess,
         getPastWinners,

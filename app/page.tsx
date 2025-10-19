@@ -46,6 +46,7 @@ export default function Home() {
     const [loadingMessage, setLoadingMessage] = useState<string>("");
     const loadedAccountRef = useRef<string | null>(null);
     const [winners, setWinners] = useState<Winner[]>([]);
+    const [allowance, setAllowance] = useState(0);
 
     const {
         connectWallet,
@@ -53,6 +54,7 @@ export default function Home() {
         getPlayerGuesses,
         getPlayerWins,
         getTokenBalance,
+        getAllowance,
         approveTokens,
         makeGuess,
         getPastWinners,
@@ -180,20 +182,23 @@ export default function Home() {
                     return;
                 }
 
-                const [balance, guesses, wins] = await Promise.all([
+                const [balance, guesses, wins, allowanceAmount] = await Promise.all([
                     getTokenBalance(),
                     getPlayerGuesses(account),
-                    getPlayerWins(account)
+                    getPlayerWins(account),
+                    getAllowance()
                 ]);
 
                 console.log('User data loaded:');
                 console.log('Balance:', balance);
                 console.log('Guesses:', guesses);
                 console.log('Wins:', wins);
+                console.log('Allowance:', allowanceAmount);
 
                 setTokenBalance(balance);
                 setTotalGuesses(guesses);
                 setPlayerWins(wins);
+                setAllowance(allowanceAmount);
 
                 console.log('State updated - totalGuesses:', guesses, 'playerWins:', wins);
             } catch (error) {
@@ -207,7 +212,7 @@ export default function Home() {
             loadedAccountRef.current = account;
             loadUserData();
         }
-    }, [isConnected, isDemoMode, account, getTokenBalance, getPlayerGuesses, getPlayerWins]);
+    }, [isConnected, isDemoMode, account, getTokenBalance, getPlayerGuesses, getPlayerWins, getAllowance]);
 
     const handleApprove = async () => {
         if (!isConnected) {
@@ -221,6 +226,9 @@ export default function Home() {
             const success = await approveTokens('100');
             if (success) {
                 setLoadingMessage('✅ Approval successful! You can now make a guess.');
+                // Update allowance after successful approval
+                const newAllowance = await getAllowance();
+                setAllowance(newAllowance);
                 setTimeout(() => setLoadingMessage(''), 3000);
             } else {
                 setLoadingMessage('❌ Approval failed. Please try again.');
@@ -430,11 +438,11 @@ export default function Home() {
                             <Button
                                 onClick={handleGuess}
                                 className="w-full h-16 bg-gradient-to-r from-primary to-secondary hover:from-primary-glow hover:to-secondary-glow text-white font-black text-xl transition-all duration-300 neon-button rounded-2xl flex items-center justify-center gap-3"
-                                disabled={isWinning || isLoading}
+                                disabled={isWinning || isLoading || (!isDemoMode && allowance < 100)}
                             >
                                 <Image src="/degen-logo.png" alt="Hat" width={32} height={32} className="w-8 h-8 object-contain" />
                                 <Zap className="w-6 h-6" />
-                                {isWinning ? "PROCESSING..." : isDemoMode ? "GUESS FOR 100 $DEGEN" : "MAKE GUESS"}
+                                {isWinning ? "PROCESSING..." : isDemoMode ? "GUESS FOR 100 $DEGEN" : (!isDemoMode && allowance < 100) ? "MAKE GUESS" : "MAKE GUESS"}
                                 <Zap className="w-6 h-6" />
                             </Button>
 
