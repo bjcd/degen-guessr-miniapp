@@ -5,12 +5,12 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol"; // ✅ Added
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {VRFConsumerBaseV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/VRFConsumerBaseV2Plus.sol";
 import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
 
 contract DegenGuessr is VRFConsumerBaseV2Plus, ReentrancyGuard, Pausable {
-    using SafeERC20 for IERC20; // ✅ Added
+    using SafeERC20 for IERC20;
 
     // Chainlink VRF v2.5+ variables
     bytes32 private immutable KEY_HASH;

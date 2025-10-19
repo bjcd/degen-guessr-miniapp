@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
-import { Providers } from './providers';
+import React from 'react';
+import { FarcasterProvider } from './farcaster-provider';
 import './globals.css';
 
 const inter = Inter({ subsets: ['latin'] });
@@ -32,11 +33,11 @@ export default function RootLayout({
     return (
         <html lang="en">
             <body className={inter.className}>
-                <Providers>
+                <FarcasterProvider>
                     <div className="min-h-screen bg-gradient-to-br from-degen-50 to-degen-100">
                         {children}
                     </div>
-                </Providers>
+                </FarcasterProvider>
             </body>
         </html>
     );

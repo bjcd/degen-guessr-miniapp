@@ -144,7 +144,7 @@ export default function Home() {
                 address: winner.player,
                 amount: parseFloat(winner.amount),
                 timestamp: winner.timestamp,
-                txHash: winner.txHash
+                txHash: undefined // txHash not included in the winner data
             }));
             setWinners(formattedWinners);
         } catch (error) {
@@ -359,7 +359,7 @@ export default function Home() {
                         </h1>
                         <Image src="/degen-logo.png" alt="Degen Hat" width={64} height={64} className="w-16 h-16 object-contain animate-[bounce_2s_ease-in-out_infinite] scale-x-[-1]" />
                     </div>
-                    <p className="text-muted-foreground text-sm font-medium">Guess the number. Win the pot. Be legendary.</p>
+                    <p className="text-muted-foreground text-sm font-medium">Guess the number. Win the pot.</p>
 
                     {/* Connection Status */}
                     <div className="flex items-center justify-center gap-4">

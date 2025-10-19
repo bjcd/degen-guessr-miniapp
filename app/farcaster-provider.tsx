@@ -111,37 +111,43 @@ export function FarcasterProvider({ children }: { children: ReactNode }) {
     };
 
     const getEthereumProvider = async () => {
-        try {
-            if (isFarcasterEnvironment && typeof window !== 'undefined') {
-                // Use Farcaster's embedded wallet provider
-                console.log('Attempting to get Farcaster embedded wallet...');
-                try {
-                    const fcProvider = await sdk.wallet.ethProvider;
-                    if (fcProvider) {
-                        console.log('Using Farcaster embedded wallet');
-                        return fcProvider;
-                    }
-                } catch (fcError) {
-                    console.warn('Farcaster wallet not available:', fcError);
-                }
+        // Strategy 1: In Farcaster environment, use SDK wallet
+        if (isFarcasterEnvironment && typeof window !== 'undefined') {
+            console.log('In Farcaster environment - attempting to use SDK wallet...');
 
-                // Fallback to window.ethereum if Farcaster wallet not available
-                if ((window as any).ethereum) {
-                    console.log('Using window.ethereum as fallback');
-                    return (window as any).ethereum;
+            try {
+                // Access Farcaster's embedded wallet via SDK
+                const fcProvider = await sdk.wallet.getEthereumProvider();
+
+                if (fcProvider) {
+                    console.log('✓ Successfully got Farcaster embedded wallet');
+                    return fcProvider;
+                } else {
+                    console.warn('⚠ Farcaster wallet provider returned null');
                 }
-            } else {
-                // Use browser wallet (MetaMask, etc.) for web app
-                if (typeof window !== 'undefined' && (window as any).ethereum) {
-                    console.log('Using browser wallet');
-                    return (window as any).ethereum;
-                }
+            } catch (fcError) {
+                console.error('✗ Error accessing Farcaster wallet:', fcError);
+                // This is expected if wallet capability isn't granted
             }
 
-            throw new Error('No wallet provider found');
-        } catch (error) {
-            console.error('Failed to get Ethereum provider:', error);
-            return null;
+            // Fallback: Try injected wallet (for desktop Farcaster with extensions)
+            if ((window as any).ethereum) {
+                console.log('↪ Falling back to injected wallet in Farcaster environment');
+                return (window as any).ethereum;
+            }
+
+            // No wallet available in Farcaster
+            throw new Error('No wallet available. Please grant wallet access in Farcaster settings.');
+        }
+
+        // Strategy 2: In regular browser, use injected wallet
+        else {
+            if (typeof window !== 'undefined' && (window as any).ethereum) {
+                console.log('✓ Using browser injected wallet (MetaMask, Coinbase, etc.)');
+                return (window as any).ethereum;
+            }
+
+            throw new Error('No wallet found. Please install MetaMask or another Web3 wallet.');
         }
     };
 
