@@ -29,8 +29,8 @@
         "ogImageUrl": "https://degenguessr.xyz/miniapp-icon.png",
         "ogTitle": "Degen Guessr",
         "requiredCapabilities": [
-            "wallet",
-            "addMiniApp"
+            "wallet.getEthereumProvider",
+            "actions.addMiniApp"
         ]
     }
 }
