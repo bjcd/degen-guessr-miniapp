@@ -114,6 +114,20 @@ export function FarcasterProvider({ children }: { children: ReactNode }) {
         // Strategy 1: In Farcaster environment, use SDK wallet
         if (isFarcasterEnvironment && typeof window !== 'undefined') {
             console.log('In Farcaster environment - attempting to use SDK wallet...');
+            console.log('SDK ready:', isReady);
+            console.log('SDK available:', !!sdk);
+            console.log('SDK wallet available:', !!sdk?.wallet);
+
+            // If SDK isn't ready yet, wait a bit and try again
+            if (!isReady || !sdk?.wallet) {
+                console.log('SDK not ready yet, waiting...');
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                if (!sdk?.wallet) {
+                    console.warn('SDK still not ready after waiting');
+                    return null;
+                }
+            }
 
             try {
                 // Access Farcaster's embedded wallet via SDK
