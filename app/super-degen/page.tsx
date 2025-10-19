@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Button } from "./components/ui/button";
-import { Input } from "./components/ui/input";
-import { Card } from "./components/ui/card";
-import { Trophy, Zap, TrendingUp, Sparkles, ArrowRight } from "lucide-react";
-import { useFarcaster } from "./farcaster-provider";
-import { useContract } from "./hooks/useContract";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import { Card } from "../components/ui/card";
+import { Trophy, Zap, TrendingUp, Sparkles, ArrowLeft } from "lucide-react";
+import { useFarcaster } from "../farcaster-provider";
+import { useContract } from "../hooks/useContract";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -25,16 +25,16 @@ interface Winner {
 }
 
 const DEGEN_TOKEN = process.env.NEXT_PUBLIC_DEGEN_TOKEN_ADDRESS || '0x4ed4E862860beD51a9570b96d89aF5E1B0Efefed';
-const GUESS_GAME_CONTRACT = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || '0x0000000000000000000000000000000000000000';
+const GUESS_GAME_CONTRACT = process.env.NEXT_PUBLIC_CONTRACT_1000_ADDRESS || '0x0000000000000000000000000000000000000000';
 
 // Debug logging
 console.log('Environment variables:');
-console.log('NEXT_PUBLIC_CONTRACT_ADDRESS:', process.env.NEXT_PUBLIC_CONTRACT_ADDRESS);
+console.log('NEXT_PUBLIC_CONTRACT_1000_ADDRESS:', process.env.NEXT_PUBLIC_CONTRACT_1000_ADDRESS);
 console.log('NEXT_PUBLIC_DEGEN_TOKEN_ADDRESS:', process.env.NEXT_PUBLIC_DEGEN_TOKEN_ADDRESS);
 console.log('GUESS_GAME_CONTRACT:', GUESS_GAME_CONTRACT);
 console.log('DEGEN_TOKEN:', DEGEN_TOKEN);
 
-export default function Home() {
+export default function SuperDegenHome() {
     const { isReady, user, signIn, signOut, isFarcasterEnvironment } = useFarcaster();
 
     const [guess, setGuess] = useState("");
@@ -131,7 +131,7 @@ export default function Home() {
                 setLoadingMessage('');
             }, 5000);
         }
-    });
+    }, GUESS_GAME_CONTRACT); // Use Super Degen contract
 
     const isDemoMode = GUESS_GAME_CONTRACT === '0x0000000000000000000000000000000000000000';
 
@@ -273,8 +273,8 @@ export default function Home() {
 
         try {
             setIsWinning(true);
-            setLoadingMessage('Approving 100 DEGEN...');
-            const success = await approveTokens('100');
+            setLoadingMessage('Approving 1000 DEGEN...');
+            const success = await approveTokens('1000');
             if (success) {
                 setLoadingMessage('✅ Approval successful! You can now make a guess.');
                 // Update allowance after successful approval
@@ -304,8 +304,8 @@ export default function Home() {
             // Demo mode logic
             const guessNum = parseInt(guess);
 
-            if (!guess || guessNum < 1 || guessNum > 100) {
-                alert("Please enter a number between 1 and 100");
+            if (!guess || guessNum < 1 || guessNum > 10) {
+                alert("Please enter a number between 1 and 10");
                 return;
             }
 
@@ -318,14 +318,14 @@ export default function Home() {
             };
 
             setAttempts([newAttempt, ...attempts.slice(0, 4)]);
-            setPot(pot + 90);
+            setPot(pot + 900);
             setTotalGuesses(totalGuesses + 1);
 
             setTimeout(() => {
-                const targetNumber = Math.floor(Math.random() * 100) + 1;
+                const targetNumber = Math.floor(Math.random() * 10) + 1;
                 if (guessNum === targetNumber) {
-                    alert(`🎉 WINNER! You guessed ${guessNum} correctly! You won ${pot + 90} $DEGEN!`);
-                    setPot(900);
+                    alert(`🎉 WINNER! You guessed ${guessNum} correctly! You won ${pot + 900} $DEGEN!`);
+                    setPot(9000);
                     setAttempts([]);
                 } else {
                     alert(`Not quite... ${guessNum} wasn't it. The winning number was ${targetNumber}. Try again!`);
@@ -339,14 +339,14 @@ export default function Home() {
         // Real contract logic
         const guessNum = parseInt(guess);
 
-        if (!guess || guessNum < 1 || guessNum > 100) {
-            setLoadingMessage("Please enter a number between 1 and 100");
+        if (!guess || guessNum < 1 || guessNum > 10) {
+            setLoadingMessage("Please enter a number between 1 and 10");
             setTimeout(() => setLoadingMessage(''), 3000);
             return;
         }
 
-        if (tokenBalance < 100) {
-            setLoadingMessage('Insufficient token balance. You need at least 100 tokens to play.');
+        if (tokenBalance < 1000) {
+            setLoadingMessage('Insufficient token balance. You need at least 1000 tokens to play.');
             setTimeout(() => setLoadingMessage(''), 3000);
             return;
         }
@@ -403,7 +403,7 @@ export default function Home() {
             setLoadingMessage(`Approving ${amount} DEGEN...`);
             const success = await approveTokens(amount.toString());
             if (success) {
-                setLoadingMessage(`✅ Approval successful! You can now make ${Math.floor(amount / 100)} guesses.`);
+                setLoadingMessage(`✅ Approval successful! You can now make ${Math.floor(amount / 1000)} guesses.`);
                 // Update allowance after successful approval
                 const newAllowance = await getAllowance();
                 setAllowance(newAllowance);
@@ -519,12 +519,12 @@ export default function Home() {
                             <div className="space-y-2">
                                 <label className="text-sm font-semibold text-foreground flex items-center gap-2">
                                     <Sparkles className="w-4 h-4 text-primary" />
-                                    Guess a number between 1 and 100.
+                                    Guess a number between 1 and 10.
                                 </label>
                                 <Input
                                     type="number"
                                     min="1"
-                                    max="100"
+                                    max="10"
                                     value={guess}
                                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => setGuess(e.target.value)}
                                     placeholder="Enter number..."
@@ -541,18 +541,18 @@ export default function Home() {
                                     disabled={isWinning || isLoading}
                                 >
                                     <TrendingUp className="w-5 h-5" />
-                                    APPROVE 100 DEGEN
+                                    APPROVE 1000 DEGEN
                                 </Button>
                             )}
 
                             <Button
                                 onClick={handleGuess}
                                 className="w-full h-16 bg-gradient-to-r from-primary to-secondary hover:from-primary-glow hover:to-secondary-glow text-white font-black text-xl transition-all duration-300 neon-button rounded-2xl flex items-center justify-center gap-3"
-                                disabled={isWinning || isLoading || (!isDemoMode && allowance < 100)}
+                                disabled={isWinning || isLoading || (!isDemoMode && allowance < 1000)}
                             >
                                 <Image src="/degen-logo.png" alt="Hat" width={32} height={32} className="w-8 h-8 object-contain" />
                                 <Zap className="w-6 h-6" />
-                                {isWinning ? "PROCESSING..." : isDemoMode ? "GUESS FOR 100 $DEGEN" : (!isDemoMode && allowance < 100) ? "MAKE GUESS" : "MAKE GUESS"}
+                                {isWinning ? "PROCESSING..." : isDemoMode ? "GUESS FOR 1000 $DEGEN" : (!isDemoMode && allowance < 1000) ? "MAKE GUESS" : "MAKE GUESS"}
                                 <Zap className="w-6 h-6" />
                             </Button>
 
@@ -580,25 +580,25 @@ export default function Home() {
                         <Card className="glass-card gradient-border p-6">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-3">
-                                    <div className="text-2xl">🎩</div>
+                                    <div className="text-2xl">⚡🎩</div>
                                     <div>
-                                        <div className="flex items-center gap-2 text-primary font-bold text-lg">
-                                            Degen Mode
+                                        <div className="flex items-center gap-2 text-yellow-400 font-bold text-lg">
+                                            Super Degen Mode
                                             <span className="text-green-400 text-sm">✓</span>
                                         </div>
                                         <p className="text-muted-foreground text-sm mt-1">
-                                            You're in Degen Mode. Switch to Super Degen Mode for better odds, higher stakes.
+                                            You're in Super Degen Mode. Switch to Degen Mode for lower odds, but more cautious stakes.
                                         </p>
                                         <p className="text-xs text-muted-foreground/70 mt-1">
-                                            1 in 10 chances to hit the pot
+                                            1 in 100 chances to hit the pot
                                         </p>
                                     </div>
                                 </div>
                                 <Link
-                                    href="/super-degen"
-                                    className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 text-white font-bold px-6 py-3 rounded-xl transition-all duration-300 text-sm whitespace-nowrap"
+                                    href="/"
+                                    className="bg-gradient-to-r from-primary to-secondary hover:from-primary/80 hover:to-secondary/80 text-white font-bold px-6 py-3 rounded-xl transition-all duration-300 text-sm whitespace-nowrap"
                                 >
-                                    Go Super Degen ⚡️🎩
+                                    Go Degen 🎩
                                 </Link>
                             </div>
                         </Card>
@@ -730,19 +730,19 @@ export default function Home() {
 
                                 <div className="grid grid-cols-3 gap-3">
                                     <Button
-                                        onClick={() => handlePreApprove(1000)}
+                                        onClick={() => handlePreApprove(4000)}
                                         className="h-12 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 text-white font-bold text-sm transition-all duration-300 rounded-xl"
                                         disabled={isWinning || isLoading}
                                     >
-                                        1000 DEGEN
+                                        4000 DEGEN
                                     </Button>
 
                                     <Button
-                                        onClick={() => handlePreApprove(2000)}
+                                        onClick={() => handlePreApprove(8000)}
                                         className="h-12 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 text-white font-bold text-sm transition-all duration-300 rounded-xl"
                                         disabled={isWinning || isLoading}
                                     >
-                                        2000 DEGEN
+                                        8000 DEGEN
                                     </Button>
 
                                     <Button
@@ -761,11 +761,11 @@ export default function Home() {
                             <div className="text-xs font-medium text-muted-foreground space-y-2">
                                 <p className="flex items-start gap-2">
                                     <span className="text-primary font-bold">•</span>
-                                    Pay 100 $DEGEN to guess
+                                    Pay 1000 $DEGEN to guess
                                 </p>
                                 <p className="flex items-start gap-2">
                                     <span className="text-primary font-bold">•</span>
-                                    50 $DEGEN added to pot, 50 $DEGEN to treasury (pot provision)
+                                    500 $DEGEN added to pot, 500 $DEGEN to treasury (pot provision)
                                 </p>
                                 <p className="flex items-start gap-2">
                                     <span className="text-primary font-bold">•</span>

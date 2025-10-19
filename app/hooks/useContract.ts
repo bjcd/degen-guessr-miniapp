@@ -21,7 +21,7 @@ interface ContractCallbacks {
     onError?: (message: string) => void;
 }
 
-export function useContract(callbacks?: ContractCallbacks) {
+export function useContract(callbacks?: ContractCallbacks, contractAddress?: string) {
     const { getEthereumProvider, isFarcasterEnvironment } = useFarcaster();
     const [provider, setProvider] = useState<ethers.BrowserProvider | null>(null);
     const [signer, setSigner] = useState<ethers.JsonRpcSigner | null>(null);
@@ -30,9 +30,12 @@ export function useContract(callbacks?: ContractCallbacks) {
     const [isConnected, setIsConnected] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
 
+    // Use provided contract address or default
+    const currentContractAddress = contractAddress || CONTRACT_ADDRESS;
+
     // Create a read-only provider for contract data
     const rpcProvider = new ethers.JsonRpcProvider(BASE_RPC_URL);
-    const readOnlyContract = new ethers.Contract(CONTRACT_ADDRESS!, DegenGuessrABI, rpcProvider);
+    const readOnlyContract = new ethers.Contract(currentContractAddress!, DegenGuessrABI, rpcProvider);
 
     // Connect wallet
     const connectWallet = async () => {
@@ -68,7 +71,7 @@ export function useContract(callbacks?: ContractCallbacks) {
 
                 const signer = await provider.getSigner();
                 const contract = new ethers.Contract(
-                    CONTRACT_ADDRESS!,
+                    currentContractAddress!,
                     DegenGuessrABI,
                     signer
                 );
@@ -98,7 +101,7 @@ export function useContract(callbacks?: ContractCallbacks) {
     // Get current pot
     const getPot = async (): Promise<number> => {
         try {
-            console.log('Getting pot from contract:', CONTRACT_ADDRESS);
+            console.log('Getting pot from contract:', currentContractAddress);
             const pot = await readOnlyContract.getPot();
             console.log('Raw pot value:', pot.toString());
             // Contract stores pot in wei (18 decimals), convert to DEGEN
@@ -211,7 +214,7 @@ export function useContract(callbacks?: ContractCallbacks) {
         }
 
         try {
-            console.log('Getting allowance from:', TOKEN_ADDRESS, 'for account:', account, 'spender:', CONTRACT_ADDRESS);
+            console.log('Getting allowance from:', TOKEN_ADDRESS, 'for account:', account, 'spender:', currentContractAddress);
             const tokenContract = new ethers.Contract(
                 TOKEN_ADDRESS!,
                 [
@@ -221,7 +224,7 @@ export function useContract(callbacks?: ContractCallbacks) {
                 rpcProvider
             );
 
-            const allowance = await tokenContract.allowance(account, CONTRACT_ADDRESS!);
+            const allowance = await tokenContract.allowance(account, currentContractAddress!);
             console.log('Raw allowance:', allowance.toString());
 
             // Try to get decimals, but don't fail if it doesn't work
@@ -275,7 +278,7 @@ export function useContract(callbacks?: ContractCallbacks) {
             console.log(`Approving ${amount} tokens (${amountWei.toString()} wei) with ${decimals} decimals`);
 
             // Use manual gas limit to avoid eth_estimateGas (Farcaster-compatible)
-            const tx = await tokenContract.approve(CONTRACT_ADDRESS!, amountWei, {
+            const tx = await tokenContract.approve(currentContractAddress!, amountWei, {
                 gasLimit: 100000n // Standard ERC20 approve gas limit
             });
             console.log('Approval transaction sent, waiting for confirmation...');
@@ -290,7 +293,7 @@ export function useContract(callbacks?: ContractCallbacks) {
                 ['function allowance(address owner, address spender) view returns (uint256)'],
                 rpcProvider
             );
-            const allowance = await readOnlyTokenContract.allowance(account, CONTRACT_ADDRESS!);
+            const allowance = await readOnlyTokenContract.allowance(account, currentContractAddress!);
             console.log(`Allowance after approval: ${allowance.toString()}`);
 
             return true;
@@ -310,7 +313,7 @@ export function useContract(callbacks?: ContractCallbacks) {
 
             console.log('Making guess...');
             console.log('Guess number:', number);
-            console.log('Contract address:', CONTRACT_ADDRESS);
+            console.log('Contract address:', currentContractAddress);
             console.log('User address:', account);
 
             // Make the guess with manual gas limit (Farcaster-compatible)
