@@ -341,6 +341,64 @@ export default function Home() {
         }
     };
 
+    const handlePreApprove = async (amount: number) => {
+        if (!isConnected) {
+            await connectWallet();
+            return;
+        }
+
+        try {
+            setIsWinning(true);
+            setLoadingMessage(`Approving ${amount} DEGEN...`);
+            const success = await approveTokens(amount.toString());
+            if (success) {
+                setLoadingMessage(`✅ Approval successful! You can now make ${Math.floor(amount / 100)} guesses.`);
+                // Update allowance after successful approval
+                const newAllowance = await getAllowance();
+                setAllowance(newAllowance);
+                setTimeout(() => setLoadingMessage(''), 3000);
+            } else {
+                setLoadingMessage('❌ Approval failed. Please try again.');
+                setTimeout(() => setLoadingMessage(''), 3000);
+            }
+        } catch (error) {
+            console.error('Error pre-approving tokens:', error);
+            setLoadingMessage('❌ Approval failed: ' + (error as Error).message);
+            setTimeout(() => setLoadingMessage(''), 3000);
+        } finally {
+            setIsWinning(false);
+        }
+    };
+
+    const handleRevoke = async () => {
+        if (!isConnected) {
+            await connectWallet();
+            return;
+        }
+
+        try {
+            setIsWinning(true);
+            setLoadingMessage('Revoking approval...');
+            const success = await approveTokens('0');
+            if (success) {
+                setLoadingMessage('✅ Approval revoked successfully!');
+                // Update allowance after successful revocation
+                const newAllowance = await getAllowance();
+                setAllowance(newAllowance);
+                setTimeout(() => setLoadingMessage(''), 3000);
+            } else {
+                setLoadingMessage('❌ Revocation failed. Please try again.');
+                setTimeout(() => setLoadingMessage(''), 3000);
+            }
+        } catch (error) {
+            console.error('Error revoking approval:', error);
+            setLoadingMessage('❌ Revocation failed: ' + (error as Error).message);
+            setTimeout(() => setLoadingMessage(''), 3000);
+        } finally {
+            setIsWinning(false);
+        }
+    };
+
     console.log('Page render - isReady:', isReady, 'user:', user);
 
     if (!isReady) {
@@ -583,6 +641,42 @@ export default function Home() {
                             </div>
                         </Card>
 
+                        {/* Pre-approval Section */}
+                        {!isDemoMode && isConnected && (
+                            <Card className="glass-card gradient-border p-6 space-y-4">
+                                <div className="text-center space-y-2">
+                                    <h3 className="text-xl font-bold text-foreground">Pre-approve to guess in one click</h3>
+                                    <p className="text-sm text-muted-foreground">Your allowance is {allowance.toFixed(0)} DEGEN</p>
+                                </div>
+
+                                <div className="grid grid-cols-3 gap-3">
+                                    <Button
+                                        onClick={() => handlePreApprove(1000)}
+                                        className="h-12 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 text-white font-bold text-sm transition-all duration-300 rounded-xl"
+                                        disabled={isWinning || isLoading}
+                                    >
+                                        1000 DEGEN
+                                    </Button>
+
+                                    <Button
+                                        onClick={() => handlePreApprove(2000)}
+                                        className="h-12 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 text-white font-bold text-sm transition-all duration-300 rounded-xl"
+                                        disabled={isWinning || isLoading}
+                                    >
+                                        2000 DEGEN
+                                    </Button>
+
+                                    <Button
+                                        onClick={handleRevoke}
+                                        className="h-12 bg-gradient-to-r from-primary/80 to-secondary/80 hover:from-primary/70 hover:to-secondary/70 text-white font-bold text-sm transition-all duration-300 rounded-xl"
+                                        disabled={isWinning || isLoading}
+                                    >
+                                        Revoke
+                                    </Button>
+                                </div>
+                            </Card>
+                        )}
+
                         {/* How to Play */}
                         <Card className="glass-card border border-muted/30 p-4">
                             <div className="text-xs font-medium text-muted-foreground space-y-2">
@@ -592,7 +686,7 @@ export default function Home() {
                                 </p>
                                 <p className="flex items-start gap-2">
                                     <span className="text-primary font-bold">•</span>
-                                    50 $DEGEN added to pot
+                                    50 $DEGEN added to pot, 50 $DEGEN to treasury (pot provision)
                                 </p>
                                 <p className="flex items-start gap-2">
                                     <span className="text-primary font-bold">•</span>
