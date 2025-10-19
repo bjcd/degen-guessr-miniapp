@@ -1,8 +1,8 @@
 {
     "accountAssociation": {
-        "header": "eyJmaWQiOjE3MDY0LCJ0eXBlIjoiY3VzdG9keSIsImtleSI6IjB4MjUxMzk5NkZENzNBNmZCNDQ2YTZBNmRhNDE1NEVjNTAzZURhYjhEMiJ9",
-        "payload": "eyJkb21haW4iOiJkZWdlbi1ndWVzc3ItbWluaWFwcC52ZXJjZWwuYXBwIn0",
-        "signature": "uoli+662sqkV+NxgIJ6reBNVjaHVHy/SU0drxTFDGsMFQOUHh+gm/EZC0JpA6yzoFnq7VEBPxzL9D6xeJdDWmxs="
+        "header": "eyJmaWQiOjE3MDY0LCJ0eXBlIjoiYXV0aCIsImtleSI6IjB4ZkYwN0Q5REYzZjY4YUYwMDExYjg5NTVlNEQ1NTM1OTYyREE4NTQzMCJ9",
+        "payload": "eyJkb21haW4iOiJkZWdlbmd1ZXNzci54eXoifQ",
+        "signature": "8qHcUT5b9WpipuMzim16OCEGIM8F7+/zx9gPPgGceEtFVv4vYvLwM55dP4XZj3/Q7qXdUdLirduFwen0CSSvFxs="
     },
     "miniapp": {
         "name": "Degen Guessr",
