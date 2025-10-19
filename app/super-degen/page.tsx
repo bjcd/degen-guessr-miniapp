@@ -25,13 +25,13 @@ interface Winner {
 }
 
 const DEGEN_TOKEN = process.env.NEXT_PUBLIC_DEGEN_TOKEN_ADDRESS || '0x4ed4E862860beD51a9570b96d89aF5E1B0Efefed';
-const GUESS_GAME_CONTRACT = process.env.NEXT_PUBLIC_CONTRACT_1000_ADDRESS || '0x0000000000000000000000000000000000000000';
+const SUPER_DEGEN_CONTRACT = process.env.NEXT_PUBLIC_CONTRACT_1000_ADDRESS || '0x0000000000000000000000000000000000000000';
 
 // Debug logging
 console.log('Environment variables:');
 console.log('NEXT_PUBLIC_CONTRACT_1000_ADDRESS:', process.env.NEXT_PUBLIC_CONTRACT_1000_ADDRESS);
 console.log('NEXT_PUBLIC_DEGEN_TOKEN_ADDRESS:', process.env.NEXT_PUBLIC_DEGEN_TOKEN_ADDRESS);
-console.log('GUESS_GAME_CONTRACT:', GUESS_GAME_CONTRACT);
+console.log('SUPER_DEGEN_CONTRACT:', SUPER_DEGEN_CONTRACT);
 console.log('DEGEN_TOKEN:', DEGEN_TOKEN);
 
 export default function SuperDegenHome() {
@@ -49,6 +49,7 @@ export default function SuperDegenHome() {
     const [winners, setWinners] = useState<Winner[]>([]);
     const [allowance, setAllowance] = useState(0);
     const loadedAllowanceRef = useRef<string | null>(null);
+    const [isLoadingPot, setIsLoadingPot] = useState(false);
 
     const {
         connectWallet,
@@ -131,16 +132,17 @@ export default function SuperDegenHome() {
                 setLoadingMessage('');
             }, 5000);
         }
-    }, GUESS_GAME_CONTRACT); // Use Super Degen contract
+    }, SUPER_DEGEN_CONTRACT); // Use Super Degen contract
 
-    const isDemoMode = GUESS_GAME_CONTRACT === '0x0000000000000000000000000000000000000000';
+    const isDemoMode = SUPER_DEGEN_CONTRACT === '0x0000000000000000000000000000000000000000';
 
     const loadPublicData = async () => {
         try {
             console.log('Loading public contract data...');
-            console.log('Contract address:', GUESS_GAME_CONTRACT);
+            console.log('Contract address:', SUPER_DEGEN_CONTRACT);
             console.log('Is demo mode:', isDemoMode);
 
+            setIsLoadingPot(true);
             const [potValue, pastWinners] = await Promise.all([
                 getPot(),
                 getPastWinners(10)
@@ -163,6 +165,8 @@ export default function SuperDegenHome() {
             setWinners(formattedWinners);
         } catch (error) {
             console.error('Error loading public data:', error);
+        } finally {
+            setIsLoadingPot(false);
         }
     };
 
@@ -174,12 +178,13 @@ export default function SuperDegenHome() {
         }
     }, [isReady, isFarcasterEnvironment, isConnected, isLoading, connectWallet]);
 
-    // Load public contract data (pot and past winners) immediately
+    // Load public contract data (pot and past winners) immediately and when contract changes
     useEffect(() => {
         if (!isDemoMode) {
+            console.log('Loading public data for contract:', SUPER_DEGEN_CONTRACT);
             loadPublicData();
         }
-    }, [isDemoMode]);
+    }, [isDemoMode, SUPER_DEGEN_CONTRACT]);
 
     // Periodic pot refresh to ensure it stays up to date
     useEffect(() => {
@@ -191,15 +196,16 @@ export default function SuperDegenHome() {
 
             return () => clearInterval(interval);
         }
-    }, [isDemoMode, isConnected]);
+    }, [isDemoMode, isConnected, SUPER_DEGEN_CONTRACT]);
 
-    // Load user-specific data when wallet connects
+    // Load user-specific data when wallet connects or contract changes
     useEffect(() => {
         const loadUserData = async () => {
             try {
                 console.log('Loading user-specific data...');
                 console.log('Account:', account);
                 console.log('Is connected:', isConnected);
+                console.log('Contract:', SUPER_DEGEN_CONTRACT);
 
                 if (!account) {
                     console.log('No account, skipping user data load');
@@ -227,39 +233,47 @@ export default function SuperDegenHome() {
             }
         };
 
-        console.log('useEffect triggered - isConnected:', isConnected, 'isDemoMode:', isDemoMode, 'account:', account);
-        if (isConnected && !isDemoMode && account && loadedAccountRef.current !== account) {
-            console.log('Calling loadUserData...');
-            loadedAccountRef.current = account;
-            loadUserData();
+        console.log('useEffect triggered - isConnected:', isConnected, 'isDemoMode:', isDemoMode, 'account:', account, 'contract:', SUPER_DEGEN_CONTRACT);
+        if (isConnected && !isDemoMode && account) {
+            // Reset refs when contract changes to force reload
+            const contractKey = `${account}-${SUPER_DEGEN_CONTRACT}`;
+            if (loadedAccountRef.current !== contractKey) {
+                console.log('Contract or account changed, reloading user data...');
+                loadedAccountRef.current = contractKey;
+                loadUserData();
+            }
         } else if (!isConnected) {
             // Reset refs when disconnected
             loadedAccountRef.current = null;
             loadedAllowanceRef.current = null;
         }
-    }, [isConnected, isDemoMode, account, getTokenBalance, getPlayerGuesses, getPlayerWins]);
+    }, [isConnected, isDemoMode, account, SUPER_DEGEN_CONTRACT, getTokenBalance, getPlayerGuesses, getPlayerWins]);
 
     // Load allowance separately to avoid resetting it unnecessarily
     const loadAllowance = useCallback(async (retryCount = 0) => {
-        if (isConnected && account && !isDemoMode && loadedAllowanceRef.current !== account) {
-            try {
-                const allowanceAmount = await getAllowance();
-                console.log('Loading allowance for account:', account, 'amount:', allowanceAmount, 'retry:', retryCount);
+        if (isConnected && account && !isDemoMode) {
+            // Use contract key to force reload when contract changes
+            const contractKey = `${account}-${SUPER_DEGEN_CONTRACT}`;
+            if (loadedAllowanceRef.current !== contractKey) {
+                try {
+                    const allowanceAmount = await getAllowance();
+                    console.log('Loading allowance for account:', account, 'contract:', SUPER_DEGEN_CONTRACT, 'amount:', allowanceAmount, 'retry:', retryCount);
 
-                // If allowance is 0 but we expect it to be higher, retry once
-                if (allowanceAmount === 0 && retryCount === 0) {
-                    console.log('Allowance is 0, retrying in 3 seconds...');
-                    setTimeout(() => loadAllowance(1), 3000);
-                    return;
+                    // If allowance is 0 but we expect it to be higher, retry once
+                    if (allowanceAmount === 0 && retryCount === 0) {
+                        console.log('Allowance is 0, retrying in 3 seconds...');
+                        setTimeout(() => loadAllowance(1), 3000);
+                        return;
+                    }
+
+                    setAllowance(allowanceAmount);
+                    loadedAllowanceRef.current = contractKey;
+                } catch (error) {
+                    console.error('Error loading allowance:', error);
                 }
-
-                setAllowance(allowanceAmount);
-                loadedAllowanceRef.current = account;
-            } catch (error) {
-                console.error('Error loading allowance:', error);
             }
         }
-    }, [isConnected, account, isDemoMode, getAllowance]);
+    }, [isConnected, account, isDemoMode, SUPER_DEGEN_CONTRACT, getAllowance]);
 
     useEffect(() => {
         loadAllowance();
@@ -508,7 +522,11 @@ export default function SuperDegenHome() {
                                     <Trophy className="w-5 h-5" />
                                 </div>
                                 <div className="text-7xl font-black bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent neon-glow">
-                                    {Math.floor(pot)}
+                                    {isLoadingPot ? (
+                                        <div className="animate-pulse">...</div>
+                                    ) : (
+                                        Math.floor(pot)
+                                    )}
                                 </div>
                                 <div className="text-2xl font-bold text-primary">$DEGEN</div>
                             </div>
@@ -590,7 +608,7 @@ export default function SuperDegenHome() {
                                             You're in Super Degen Mode. Switch to Degen Mode for lower odds, but more cautious stakes.
                                         </p>
                                         <p className="text-xs text-muted-foreground/70 mt-1">
-                                            1 in 10 chances to hit the pot
+                                            1 in 10O chances to hit the pot
                                         </p>
                                     </div>
                                 </div>
