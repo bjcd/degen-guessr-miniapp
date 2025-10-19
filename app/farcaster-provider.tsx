@@ -30,13 +30,21 @@ export function FarcasterProvider({ children }: { children: ReactNode }) {
         const initFarcaster = async () => {
             console.log('Initializing Farcaster provider...');
 
-            // Check if we're in a Farcaster environment
-            const isInFarcaster = typeof window !== 'undefined' &&
-                (window.location !== window.parent.location ||
-                    window.navigator.userAgent.includes('Farcaster') ||
-                    window.location.search.includes('farcaster') ||
-                    document.referrer.includes('farcaster') ||
-                    (window as any).farcaster);
+            // Use official SDK method to detect MiniApp environment
+            let isInFarcaster = false;
+            try {
+                isInFarcaster = await sdk.isInMiniApp();
+                console.log('SDK isInMiniApp result:', isInFarcaster);
+            } catch (error) {
+                console.warn('Error checking isInMiniApp:', error);
+                // Fallback to custom detection
+                isInFarcaster = typeof window !== 'undefined' &&
+                    (window.location !== window.parent.location ||
+                        window.navigator.userAgent.includes('Farcaster') ||
+                        window.location.search.includes('farcaster') ||
+                        document.referrer.includes('farcaster') ||
+                        (window as any).farcaster);
+            }
 
             console.log('Is in Farcaster environment:', isInFarcaster);
             setIsFarcasterEnvironment(isInFarcaster);
@@ -111,12 +119,29 @@ export function FarcasterProvider({ children }: { children: ReactNode }) {
     };
 
     const getEthereumProvider = async () => {
+        console.log('=== getEthereumProvider called ===');
+        console.log('isFarcasterEnvironment:', isFarcasterEnvironment);
+        console.log('isReady:', isReady);
+        console.log('typeof window:', typeof window);
+
         // Strategy 1: In Farcaster environment, use SDK wallet
         if (isFarcasterEnvironment && typeof window !== 'undefined') {
             console.log('In Farcaster environment - attempting to use SDK wallet...');
-            console.log('SDK ready:', isReady);
             console.log('SDK available:', !!sdk);
             console.log('SDK wallet available:', !!sdk?.wallet);
+
+            // Double-check we're actually in a MiniApp using the official method
+            try {
+                const actuallyInMiniApp = await sdk.isInMiniApp();
+                console.log('Double-check isInMiniApp:', actuallyInMiniApp);
+                if (!actuallyInMiniApp) {
+                    console.warn('SDK says we are NOT in a MiniApp, but our detection said we were');
+                    setIsFarcasterEnvironment(false);
+                    // Fall through to regular web wallet logic
+                }
+            } catch (error) {
+                console.warn('Error double-checking isInMiniApp:', error);
+            }
 
             // If SDK isn't ready yet, wait a bit and try again
             if (!isReady || !sdk?.wallet) {
@@ -135,21 +160,32 @@ export function FarcasterProvider({ children }: { children: ReactNode }) {
                 console.log('Available capabilities:', capabilities);
                 
                 if (!capabilities.includes('wallet.getEthereumProvider')) {
-                    console.warn('⚠ Wallet capability not available');
+                    console.warn('⚠ Wallet capability not available in capabilities list');
+                    console.log('Looking for: wallet.getEthereumProvider');
+                    console.log('Available:', capabilities);
                     return null;
                 }
 
                 // Access Farcaster's embedded wallet via SDK
+                console.log('Calling sdk.wallet.getEthereumProvider()...');
                 const fcProvider = await sdk.wallet.getEthereumProvider();
+                console.log('getEthereumProvider result:', fcProvider);
 
                 if (fcProvider) {
                     console.log('✓ Successfully got Farcaster embedded wallet');
+                    console.log('Provider type:', typeof fcProvider);
+                    console.log('Provider has request method:', typeof fcProvider.request);
                     return fcProvider;
                 } else {
                     console.warn('⚠ Farcaster wallet provider returned null');
                 }
             } catch (fcError) {
                 console.error('✗ Error accessing Farcaster wallet:', fcError);
+                console.error('Error details:', {
+                    name: fcError instanceof Error ? fcError.name : 'Unknown',
+                    message: fcError instanceof Error ? fcError.message : String(fcError),
+                    stack: fcError instanceof Error ? fcError.stack : undefined
+                });
                 // This is expected if wallet capability isn't granted
             }
 
