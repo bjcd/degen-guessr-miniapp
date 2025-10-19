@@ -8,7 +8,7 @@ const inter = Inter({ subsets: ['latin'] });
 export const metadata: Metadata = {
     title: 'DEGEN Guess 1-100',
     description: 'A fun and fair guessing game using $DEGEN token on Base network. Guess a number between 1-100 and win the entire pot!',
-    metadataBase: new URL('https://degen-guessr-miniapp.vercel.app'),
+    metadataBase: new URL('https://degenguessr.xyz'),
     icons: {
         icon: '/degen-logo.png',
     },
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     },
     // Farcaster MiniApp Embed (single JSON meta tag, no mixing with Frames v1)
     other: {
-        'fc:miniapp': '{"version":"1","imageUrl":"https://degen-guessr-miniapp.vercel.app/miniapp-icon-large.png","button":{"title":"Play Degen Guessr","action":{"type":"launch_frame","name":"Degen Guessr","url":"https://degen-guessr-miniapp.vercel.app","splashImageUrl":"https://i.imgur.com/J0cDmud.png","splashBackgroundColor":"#d26cf8"}}}',
+        'fc:miniapp': '{"version":"1","imageUrl":"https://degenguessr.xyz/miniapp-icon-large.png","button":{"title":"Play Degen Guessr","action":{"type":"launch_frame","name":"Degen Guessr","url":"https://degenguessr.xyz","splashImageUrl":"https://degenguessr.xyz/icon.png","splashBackgroundColor":"#d26cf8"}}}',
     },
 };
 
