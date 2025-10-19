@@ -130,6 +130,15 @@ export function FarcasterProvider({ children }: { children: ReactNode }) {
             }
 
             try {
+                // Check if wallet capability is available
+                const capabilities = await sdk.getCapabilities();
+                console.log('Available capabilities:', capabilities);
+                
+                if (!capabilities.includes('wallet.getEthereumProvider')) {
+                    console.warn('⚠ Wallet capability not available');
+                    return null;
+                }
+
                 // Access Farcaster's embedded wallet via SDK
                 const fcProvider = await sdk.wallet.getEthereumProvider();
 
