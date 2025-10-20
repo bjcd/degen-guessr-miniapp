@@ -55,7 +55,6 @@ export default function Home() {
     const [allowance, setAllowance] = useState(0);
     const [isLoadingData, setIsLoadingData] = useState(false);
     const [showModeDialog, setShowModeDialog] = useState(false);
-    const [autoconnectAttempted, setAutoconnectAttempted] = useState(false);
 
     // Function to fetch Farcaster profiles for winners
     const fetchWinnerProfiles = async (winners: Winner[]) => {
@@ -175,30 +174,15 @@ export default function Home() {
 
     const isDemoMode = GUESS_GAME_CONTRACT === '0x0000000000000000000000000000000000000000';
 
-    // Show mode dialog once per session (not in demo mode) - but only after autoconnect attempt
+    // Show mode dialog once per session (not in demo mode)
     useEffect(() => {
-        if (!isDemoMode && isReady) {
+        if (!isDemoMode) {
             const hasSeenDialog = sessionStorage.getItem('degen-guessr-mode-dialog-shown');
-            console.log('Mode dialog check - isDemoMode:', isDemoMode, 'isReady:', isReady, 'hasSeenDialog:', hasSeenDialog, 'isFarcasterEnvironment:', isFarcasterEnvironment, 'autoconnectAttempted:', autoconnectAttempted);
             if (!hasSeenDialog) {
-                // In Farcaster environment, wait for autoconnect attempt
-                if (isFarcasterEnvironment) {
-                    if (autoconnectAttempted) {
-                        console.log('Showing mode dialog after autoconnect attempt in Farcaster environment');
-                        // Wait a bit for autoconnect to complete, then show dialog
-                        const timer = setTimeout(() => {
-                            setShowModeDialog(true);
-                        }, 1000); // 1 second delay after autoconnect attempt
-                        return () => clearTimeout(timer);
-                    }
-                } else {
-                    console.log('Showing mode dialog immediately in web environment');
-                    // In web environment, show immediately
-                    setShowModeDialog(true);
-                }
+                setShowModeDialog(true);
             }
         }
-    }, [isDemoMode, isReady, isFarcasterEnvironment, autoconnectAttempted]);
+    }, [isDemoMode]);
 
     // Load pot and winners immediately on mount - PUBLIC DATA
     useEffect(() => {
@@ -269,13 +253,10 @@ export default function Home() {
 
     // Auto-connect wallet in Farcaster environment
     useEffect(() => {
+        console.log('Auto-connect check:', { isReady, isFarcasterEnvironment, isConnected, isLoading });
         if (isReady && isFarcasterEnvironment && !isConnected && !isLoading) {
             console.log('Auto-connecting wallet in Farcaster environment...');
-            console.log('isReady:', isReady, 'isFarcasterEnvironment:', isFarcasterEnvironment, 'isConnected:', isConnected, 'isLoading:', isLoading);
-            setAutoconnectAttempted(true);
-            connectWallet().catch(error => {
-                console.error('Autoconnect failed:', error);
-            });
+            connectWallet();
         }
     }, [isReady, isFarcasterEnvironment, isConnected, isLoading, connectWallet]);
 

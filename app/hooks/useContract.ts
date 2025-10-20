@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { ethers } from 'ethers';
 import DegenGuessrABI from '../contracts/DegenGuessr.json';
 import { useFarcaster } from '../farcaster-provider';
@@ -95,7 +95,7 @@ export function useContract(callbacks?: ContractCallbacks, contractAddress?: str
     }
 
     // Connect wallet
-    const connectWallet = async () => {
+    const connectWallet = useCallback(async () => {
         try {
             setIsLoading(true);
 
@@ -153,7 +153,7 @@ export function useContract(callbacks?: ContractCallbacks, contractAddress?: str
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [getEthereumProvider, isFarcasterEnvironment, currentContractAddress, callbacks]);
 
     // Get current pot
     const getPot = async (): Promise<number> => {

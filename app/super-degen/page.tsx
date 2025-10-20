@@ -246,6 +246,7 @@ export default function SuperDegenHome() {
 
     // Auto-connect wallet in Farcaster environment
     useEffect(() => {
+        console.log('Auto-connect check (super-degen):', { isReady, isFarcasterEnvironment, isConnected, isLoading });
         if (isReady && isFarcasterEnvironment && !isConnected && !isLoading) {
             console.log('Auto-connecting wallet in Farcaster environment...');
             connectWallet();
