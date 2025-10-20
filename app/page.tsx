@@ -11,6 +11,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { fetchFarcasterProfile, FarcasterProfile } from "./lib/farcaster-profiles";
 import { useConfetti } from "./hooks/useConfetti";
+import ModeSelectionDialog from "./components/ModeSelectionDialog";
 
 interface Attempt {
     id: number;
@@ -53,6 +54,7 @@ export default function Home() {
     const [winners, setWinners] = useState<Winner[]>([]);
     const [allowance, setAllowance] = useState(0);
     const [isLoadingData, setIsLoadingData] = useState(false);
+    const [showModeDialog, setShowModeDialog] = useState(false);
 
     // Function to fetch Farcaster profiles for winners
     const fetchWinnerProfiles = async (winners: Winner[]) => {
@@ -171,6 +173,16 @@ export default function Home() {
     });
 
     const isDemoMode = GUESS_GAME_CONTRACT === '0x0000000000000000000000000000000000000000';
+
+    // Show mode dialog once per session (not in demo mode)
+    useEffect(() => {
+        if (!isDemoMode) {
+            const hasSeenDialog = sessionStorage.getItem('degen-guessr-mode-dialog-shown');
+            if (!hasSeenDialog) {
+                setShowModeDialog(true);
+            }
+        }
+    }, [isDemoMode]);
 
     // Load pot and winners immediately on mount - PUBLIC DATA
     useEffect(() => {
@@ -377,6 +389,23 @@ export default function Home() {
         }
     };
 
+    const handleModeSelection = (mode: 'degen' | 'super-degen') => {
+        // Mark dialog as shown in session storage
+        sessionStorage.setItem('degen-guessr-mode-dialog-shown', 'true');
+        setShowModeDialog(false);
+        if (mode === 'super-degen') {
+            // Navigate to super degen page
+            window.location.href = '/super-degen';
+        }
+        // If degen mode, stay on current page
+    };
+
+    const handleCloseModeDialog = () => {
+        // Mark dialog as shown in session storage even when closed
+        sessionStorage.setItem('degen-guessr-mode-dialog-shown', 'true');
+        setShowModeDialog(false);
+    };
+
     const handlePreApprove = async (amount: number) => {
         if (!isConnected) {
             await connectWallet();
@@ -581,7 +610,7 @@ export default function Home() {
                                             You're in Degen Mode. Switch to Super Degen Mode for better odds, higher stakes.
                                         </p>
                                         <p className="text-xs text-muted-foreground/70 mt-1">
-                                            1 in 10 chances to hit the pot
+                                            1 in 100 chances to hit the pot
                                         </p>
                                     </div>
                                 </div>
@@ -793,6 +822,13 @@ export default function Home() {
                     </div>
                 </div>
             </div>
+
+            {/* Mode Selection Dialog */}
+            <ModeSelectionDialog
+                isOpen={showModeDialog}
+                onSelectMode={handleModeSelection}
+                onClose={handleCloseModeDialog}
+            />
         </main>
     );
 }

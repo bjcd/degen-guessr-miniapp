@@ -381,6 +381,7 @@ export default function SuperDegenHome() {
         }
     };
 
+
     const handlePreApprove = async (amount: number) => {
         if (!isConnected) {
             await connectWallet();
@@ -583,7 +584,7 @@ export default function SuperDegenHome() {
                                             You're in Super Degen Mode. Switch to Degen Mode for lower odds, but more cautious stakes.
                                         </p>
                                         <p className="text-xs text-muted-foreground/70 mt-1">
-                                            1 in 10O chances to hit the pot
+                                            1 in 10 chances to hit the pot
                                         </p>
                                     </div>
                                 </div>
@@ -795,6 +796,7 @@ export default function SuperDegenHome() {
                     </div>
                 </div>
             </div>
+
         </main>
     );
 }
