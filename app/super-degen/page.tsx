@@ -95,6 +95,7 @@ export default function SuperDegenHome() {
         approveTokens,
         makeGuess,
         getPastWinners,
+        clearWinnersCache,
         isConnected,
         isLoading,
         account
@@ -104,6 +105,9 @@ export default function SuperDegenHome() {
 
             // Trigger confetti celebration! 🎉
             triggerConfetti();
+
+            // Clear cache to ensure fresh data
+            clearWinnersCache();
 
             // Add to winners list
             const newWinner: Winner = {
@@ -139,6 +143,10 @@ export default function SuperDegenHome() {
         },
         onMiss: async (guessedNumber, winningNumber) => {
             setLoadingMessage(`Not quite... ${guessedNumber} wasn't it. The winning number was ${winningNumber}. Try again!`);
+
+            // Clear cache to ensure fresh data
+            clearWinnersCache();
+
             setTimeout(async () => {
                 setLoadingMessage('');
                 setIsWinning(false);

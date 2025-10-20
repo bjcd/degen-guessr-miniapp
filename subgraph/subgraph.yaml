@@ -8,7 +8,28 @@ dataSources:
     source:
       address: "0x743c74D3b77e3576d39aa00c5435D1931E0DAAD7"
       abi: DegenGuessr
-      startBlock: 36978005
+      startBlock: 36850000
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Win
+        - GameStats
+      abis:
+        - name: DegenGuessr
+          file: ./abis/DegenGuessr.json
+      eventHandlers:
+        - event: Win(indexed address,uint8,uint8,uint256)
+          handler: handleWin
+      file: ./src/mapping.ts
+  - kind: ethereum
+    name: DegenGuessr1000
+    network: base
+    source:
+      address: "0x697139fA21c69393B5359B4075f99ad1EAfA0297"
+      abi: DegenGuessr
+      startBlock: 37070000
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.7

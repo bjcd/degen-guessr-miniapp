@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
 import DegenGuessrABI from '../contracts/DegenGuessr.json';
 import { useFarcaster } from '../farcaster-provider';
-import { getRecentWinners, getGameStats, type Win as GraphWin } from '../lib/graphql';
+import { getRecentWinners, getGameStats, getPublicData, clearWinnersCache, type Win as GraphWin } from '../lib/graphql';
 
 const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS;
 const TOKEN_ADDRESS = process.env.NEXT_PUBLIC_DEGEN_TOKEN_ADDRESS;
@@ -578,7 +578,7 @@ export function useContract(callbacks?: ContractCallbacks, contractAddress?: str
         };
     }, [contract, callbacks, provider]);
 
-    // Get past Win events from the blockchain
+    // Get past Win events from the blockchain using batched query
     const getPastWinners = async (limit: number = 10): Promise<Array<{
         player: string;
         guessedNumber: number;
@@ -586,9 +586,11 @@ export function useContract(callbacks?: ContractCallbacks, contractAddress?: str
         amount: string;
         txHash: string;
         timestamp: Date;
+        contractAddress?: string;
+        mode?: string;
     }>> => {
         try {
-            console.log('Getting past winners from The Graph...');
+            console.log('Getting past winners from The Graph (batched query)...');
 
             // Get token decimals for formatting
             let decimals = 18; // Default to 18
@@ -604,8 +606,8 @@ export function useContract(callbacks?: ContractCallbacks, contractAddress?: str
                 console.warn('Could not get token decimals for past winners, using default 18:', decimalsError);
             }
 
-            // Query The Graph for recent winners
-            const graphWins = await getRecentWinners(limit);
+            // Use batched query to get both winners and stats
+            const { wins: graphWins } = await getPublicData(limit);
             console.log('Found', graphWins.length, 'winners from The Graph');
 
             // Convert GraphQL results to our format
@@ -615,7 +617,9 @@ export function useContract(callbacks?: ContractCallbacks, contractAddress?: str
                 winningNumber: win.winningNumber,
                 amount: ethers.formatUnits(win.amount, decimals),
                 txHash: win.tx,
-                timestamp: new Date(parseInt(win.timestamp) * 1000)
+                timestamp: new Date(parseInt(win.timestamp) * 1000),
+                contractAddress: win.contractAddress,
+                mode: win.mode
             }));
 
             console.log('Processed', winners.length, 'winners from The Graph');
@@ -697,6 +701,7 @@ export function useContract(callbacks?: ContractCallbacks, contractAddress?: str
         approveTokens,
         makeGuess,
         getPastWinners,
+        clearWinnersCache,
         isConnected,
         isLoading,
         account,

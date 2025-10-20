@@ -7,6 +7,8 @@ type Win @entity(immutable: true) {
   guessedNumber: Int!
   winningNumber: Int!
   amount: BigInt!
+  contractAddress: Bytes!
+  mode: String!
 }
 
 type GameStats @entity(immutable: false) {

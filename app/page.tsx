@@ -88,6 +88,7 @@ export default function Home() {
         approveTokens,
         makeGuess,
         getPastWinners,
+        clearWinnersCache,
         isConnected,
         isLoading,
         account
@@ -97,6 +98,9 @@ export default function Home() {
 
             // Trigger confetti celebration! 🎉
             triggerConfetti();
+
+            // Clear cache to ensure fresh data
+            clearWinnersCache();
 
             // Add to winners list
             const newWinner: Winner = {
@@ -132,6 +136,10 @@ export default function Home() {
         },
         onMiss: async (guessedNumber, winningNumber) => {
             setLoadingMessage(`Not quite... ${guessedNumber} wasn't it. The winning number was ${winningNumber}. Try again!`);
+
+            // Clear cache to ensure fresh data
+            clearWinnersCache();
+
             setTimeout(async () => {
                 setLoadingMessage('');
                 setIsWinning(false);
