@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
 import { sdk } from '@farcaster/miniapp-sdk';
 
 interface FarcasterUser {
@@ -118,7 +118,7 @@ export function FarcasterProvider({ children }: { children: ReactNode }) {
         }
     };
 
-    const getEthereumProvider = async () => {
+    const getEthereumProvider = useCallback(async () => {
         console.log('=== getEthereumProvider called ===');
         console.log('isFarcasterEnvironment:', isFarcasterEnvironment);
         console.log('isReady:', isReady);
@@ -208,7 +208,7 @@ export function FarcasterProvider({ children }: { children: ReactNode }) {
 
             throw new Error('No wallet found. Please install MetaMask or another Web3 wallet.');
         }
-    };
+    }, [isFarcasterEnvironment, isReady]);
 
     return (
         <FarcasterContext.Provider
