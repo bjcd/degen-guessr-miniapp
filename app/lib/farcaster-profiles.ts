@@ -9,13 +9,14 @@ export interface FarcasterProfile {
 }
 
 // Cache to avoid repeated API calls
-const profileCache = new Map<string, FarcasterProfile | null>();
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 interface CachedProfile {
-    profile: FarcasterProfile | null;
-    timestamp: number;
+  profile: FarcasterProfile | null;
+  timestamp: number;
 }
+
+const profileCache = new Map<string, CachedProfile>();
 
 /**
  * Fetch Farcaster profile data for a wallet address
