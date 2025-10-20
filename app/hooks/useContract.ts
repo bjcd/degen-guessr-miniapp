@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
 import DegenGuessrABI from '../contracts/DegenGuessr.json';
 import { useFarcaster } from '../farcaster-provider';
@@ -95,7 +95,7 @@ export function useContract(callbacks?: ContractCallbacks, contractAddress?: str
     }
 
     // Connect wallet
-    const connectWallet = useCallback(async () => {
+    const connectWallet = async () => {
         try {
             setIsLoading(true);
 
@@ -153,7 +153,7 @@ export function useContract(callbacks?: ContractCallbacks, contractAddress?: str
         } finally {
             setIsLoading(false);
         }
-    }, [getEthereumProvider, isFarcasterEnvironment, currentContractAddress, callbacks]);
+    };
 
     // Get current pot
     const getPot = async (): Promise<number> => {
@@ -339,6 +339,7 @@ export function useContract(callbacks?: ContractCallbacks, contractAddress?: str
     const approveTokens = async (amount: string): Promise<boolean> => {
         if (!signer || !account) return false;
         try {
+            console.log('🔗 approveTokens called - setting isLoading to true');
             setIsLoading(true);
 
             const tokenContract = new ethers.Contract(
@@ -391,6 +392,7 @@ export function useContract(callbacks?: ContractCallbacks, contractAddress?: str
             console.error('Error approving tokens:', error);
             return false;
         } finally {
+            console.log('🔗 approveTokens finished - setting isLoading to false');
             setIsLoading(false);
         }
     };
@@ -399,6 +401,7 @@ export function useContract(callbacks?: ContractCallbacks, contractAddress?: str
     const makeGuess = async (number: number): Promise<boolean> => {
         if (!contract || !account || !signer) return false;
         try {
+            console.log('🔗 makeGuess called - setting isLoading to true');
             setIsLoading(true);
 
             console.log('Making guess...');
@@ -498,6 +501,7 @@ export function useContract(callbacks?: ContractCallbacks, contractAddress?: str
             }
             return false;
         } finally {
+            console.log('🔗 makeGuess finished - setting isLoading to false');
             setIsLoading(false);
         }
     };
