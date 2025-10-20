@@ -32,6 +32,12 @@ export default function RootLayout({
 }) {
     return (
         <html lang="en">
+            <head>
+                <script
+                    src="https://cdn.jsdelivr.net/npm/js-confetti@latest/dist/js-confetti.browser.js"
+                    async
+                />
+            </head>
             <body className={inter.className}>
                 <FarcasterProvider>
                     <div className="min-h-screen bg-gradient-to-br from-degen-50 to-degen-100">

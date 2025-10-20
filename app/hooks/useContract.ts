@@ -9,10 +9,53 @@ import { getRecentWinners, getGameStats, type Win as GraphWin } from '../lib/gra
 const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS;
 const TOKEN_ADDRESS = process.env.NEXT_PUBLIC_DEGEN_TOKEN_ADDRESS;
 const BASE_RPC_URL = process.env.NEXT_PUBLIC_BASE_RPC_URL || 'https://mainnet.base.org';
+const BASE_RPC_URL_ALT = process.env.NEXT_PUBLIC_BASE_RPC_URL_ALT || '';
 
 console.log('Contract Address:', CONTRACT_ADDRESS);
 console.log('Token Address:', TOKEN_ADDRESS);
 console.log('Base RPC URL:', BASE_RPC_URL);
+if (BASE_RPC_URL_ALT) console.log('Base RPC URL (alt):', BASE_RPC_URL_ALT);
+
+// Keep a tiny in-memory cache to avoid UI flicker on transient RPC errors
+const lastPotByAddress = new Map<string, number>();
+const lastBalanceByAccount = new Map<string, number>();
+const lastWinsByAccount = new Map<string, number>();
+const lastGuessesByAccount = new Map<string, number>();
+const lastAllowanceByKey = new Map<string, number>(); // key: `${account}-${contract}`
+
+// Helper: retry a promise-returning fn with backoff and optional alt provider
+function isRetryableError(err: any): boolean {
+    if (!err) return false;
+    const msg = String(err.message || '');
+    const code = String(err.code || '');
+    return msg.includes('429') || msg.includes('Too Many Requests') || msg.includes('missing revert data') || code === 'CALL_EXCEPTION';
+}
+
+async function withRetries<T>(fn: () => Promise<T>, attempts = 3, baseDelayMs = 250): Promise<T> {
+    let lastError: unknown;
+    for (let i = 0; i < attempts; i++) {
+        try {
+            return await fn();
+        } catch (err) {
+            lastError = err;
+            if (!isRetryableError(err)) throw err;
+            const delay = baseDelayMs * Math.pow(2, i);
+            await new Promise(res => setTimeout(res, delay));
+        }
+    }
+    throw lastError;
+}
+
+// Helper: small delay
+function delay(ms: number) { return new Promise(res => setTimeout(res, ms)); }
+
+// Optional secondary provider for failover
+const rpcProviderPrimary = new ethers.JsonRpcProvider(BASE_RPC_URL);
+const rpcProviderAlt = BASE_RPC_URL_ALT ? new ethers.JsonRpcProvider(BASE_RPC_URL_ALT) : null;
+
+// Simple metadata cache for this session
+let cachedTokenDecimals: number | null = null;
+let cachedTokenSymbol: string | null = null;
 
 interface ContractCallbacks {
     onWin?: (guessedNumber: number, amount: string, winnerAddress: string, txHash: string) => void;
@@ -34,8 +77,22 @@ export function useContract(callbacks?: ContractCallbacks, contractAddress?: str
     const currentContractAddress = contractAddress || CONTRACT_ADDRESS;
 
     // Create a read-only provider for contract data
-    const rpcProvider = new ethers.JsonRpcProvider(BASE_RPC_URL);
+    const rpcProvider = rpcProviderPrimary;
     const readOnlyContract = new ethers.Contract(currentContractAddress!, DegenGuessrABI, rpcProvider);
+
+    // Internal: pick provider for a call with 429/missing-revert failover
+    async function callWithProviderFailover<T>(fnPrimary: () => Promise<T>, fnAlt?: () => Promise<T>): Promise<T> {
+        try {
+            return await fnPrimary();
+        } catch (err: any) {
+            if (rpcProviderAlt && fnAlt && isRetryableError(err)) {
+                console.warn('Primary RPC retryable error, retrying on alt...');
+                await delay(150);
+                return await fnAlt();
+            }
+            throw err;
+        }
+    }
 
     // Connect wallet
     const connectWallet = async () => {
@@ -102,72 +159,81 @@ export function useContract(callbacks?: ContractCallbacks, contractAddress?: str
     const getPot = async (): Promise<number> => {
         try {
             console.log('Getting pot from contract:', currentContractAddress);
-            const pot = await readOnlyContract.getPot();
-            console.log('Raw pot value:', pot.toString());
-            // Contract stores pot in wei (18 decimals), convert to DEGEN
-            const formattedPot = Number(ethers.formatEther(pot));
-            console.log('Formatted pot value:', formattedPot);
-            return formattedPot;
+            const value = await withRetries(async () => callWithProviderFailover(
+                async () => Number(ethers.formatEther(await readOnlyContract.getPot())),
+                async () => {
+                    const alt = new ethers.Contract(currentContractAddress!, DegenGuessrABI, rpcProviderAlt!);
+                    return Number(ethers.formatEther(await alt.getPot()));
+                }
+            ));
+            console.log('Formatted pot value:', value);
+            lastPotByAddress.set(currentContractAddress!, value);
+            return value;
         } catch (error) {
             console.error('Error getting pot:', error);
+            const cached = lastPotByAddress.get(currentContractAddress!);
+            if (typeof cached === 'number') {
+                console.log('Returning cached pot value:', cached);
+                return cached;
+            }
             return 0;
         }
     };
 
     // Get player wins
     const getPlayerWins = async (playerAddress: string): Promise<number> => {
-        if (!playerAddress) {
-            console.log('No player address provided, returning 0 wins');
-            return 0;
-        }
+        if (!playerAddress) return 0;
         try {
-            console.log('Getting player wins for:', playerAddress);
-            const wins = await readOnlyContract.getPlayerWins(playerAddress);
-            console.log('Raw wins:', wins.toString());
+            const winsBN = await withRetries(async () => callWithProviderFailover(
+                async () => readOnlyContract.getPlayerWins(playerAddress),
+                async () => new ethers.Contract(currentContractAddress!, DegenGuessrABI, rpcProviderAlt!).getPlayerWins(playerAddress)
+            ));
 
-            // Try to get decimals, but don't fail if it doesn't work
-            let decimals = 18; // Default to 18
-            try {
-                const tokenContractForDecimals = new ethers.Contract(
-                    TOKEN_ADDRESS!,
-                    ['function decimals() view returns (uint8)'],
-                    rpcProvider
-                );
-                decimals = await tokenContractForDecimals.decimals();
-                console.log('Token decimals for wins:', decimals);
-            } catch (decimalsError) {
-                console.warn('Could not get token decimals for wins, using default 18:', decimalsError);
+            let decimals = cachedTokenDecimals ?? 18;
+            if (cachedTokenDecimals == null) {
+                try {
+                    const tokenContractForDecimals = new ethers.Contract(
+                        TOKEN_ADDRESS!, ['function decimals() view returns (uint8)'], rpcProvider
+                    );
+                    decimals = await withRetries(() => callWithProviderFailover(
+                        () => tokenContractForDecimals.decimals(),
+                        () => new ethers.Contract(TOKEN_ADDRESS!, ['function decimals() view returns (uint8)'], rpcProviderAlt!).decimals()
+                    ));
+                    cachedTokenDecimals = decimals;
+                } catch { }
             }
-
-            const formattedWins = Number(ethers.formatUnits(wins, decimals));
-            console.log('Formatted wins:', formattedWins);
-            return formattedWins;
+            const wins = Number(ethers.formatUnits(winsBN, decimals));
+            lastWinsByAccount.set(playerAddress, wins);
+            return wins;
         } catch (error) {
             console.error('Error getting player wins:', error);
-            return 0;
+            const cached = lastWinsByAccount.get(playerAddress);
+            return typeof cached === 'number' ? cached : 0;
         }
     };
 
     // Get total guesses for a player
     const getPlayerGuesses = async (playerAddress: string): Promise<number> => {
         try {
-            const guesses = await readOnlyContract.playerGuesses(playerAddress);
-            return Number(guesses);
+            const guessesBN = await withRetries(async () => callWithProviderFailover(
+                async () => readOnlyContract.playerGuesses(playerAddress),
+                async () => new ethers.Contract(currentContractAddress!, DegenGuessrABI, rpcProviderAlt!).playerGuesses(playerAddress)
+            ));
+            const guesses = Number(guessesBN);
+            lastGuessesByAccount.set(playerAddress, guesses);
+            return guesses;
         } catch (error) {
             console.error('Error getting player guesses:', error);
-            return 0;
+            const cached = lastGuessesByAccount.get(playerAddress);
+            return typeof cached === 'number' ? cached : 0;
         }
     };
 
     // Get token balance
     const getTokenBalance = async (): Promise<number> => {
-        if (!account) {
-            console.log('No account connected, returning 0 balance');
-            return 0;
-        }
+        if (!account) return 0;
         try {
-            console.log('Getting token balance from:', TOKEN_ADDRESS, 'for account:', account);
-            const tokenContract = new ethers.Contract(
+            const tokenPrimary = new ethers.Contract(
                 TOKEN_ADDRESS!,
                 [
                     'function balanceOf(address owner) view returns (uint256)',
@@ -176,46 +242,57 @@ export function useContract(callbacks?: ContractCallbacks, contractAddress?: str
                 ],
                 rpcProvider
             );
+            const tokenAlt = rpcProviderAlt ? new ethers.Contract(
+                TOKEN_ADDRESS!,
+                [
+                    'function balanceOf(address owner) view returns (uint256)',
+                    'function decimals() view returns (uint8)',
+                    'function symbol() view returns (string)'
+                ],
+                rpcProviderAlt
+            ) : null;
 
-            const balance = await tokenContract.balanceOf(account);
-            console.log('Raw balance:', balance.toString());
+            const balance = await withRetries(() => callWithProviderFailover(
+                () => tokenPrimary.balanceOf(account),
+                () => tokenAlt!.balanceOf(account)
+            ));
 
-            // Try to get decimals, but don't fail if it doesn't work
-            let decimals = 18; // Default to 18
-            try {
-                decimals = await tokenContract.decimals();
-                console.log('Token decimals:', decimals);
-            } catch (decimalsError) {
-                console.warn('Could not get token decimals, using default 18:', decimalsError);
+            let decimals = cachedTokenDecimals ?? 18;
+            if (cachedTokenDecimals == null) {
+                try {
+                    decimals = await withRetries(() => callWithProviderFailover(
+                        () => tokenPrimary.decimals(),
+                        () => tokenAlt!.decimals()
+                    ));
+                    cachedTokenDecimals = decimals;
+                } catch { }
             }
 
-            // Try to get symbol, but don't fail if it doesn't work
-            try {
-                const symbol = await tokenContract.symbol();
-                console.log('Token symbol:', symbol);
-            } catch (symbolError) {
-                console.warn('Could not get token symbol:', symbolError);
+            if (cachedTokenSymbol == null) {
+                try {
+                    const symbol = await withRetries(() => callWithProviderFailover(
+                        () => tokenPrimary.symbol(),
+                        () => tokenAlt!.symbol()
+                    ));
+                    cachedTokenSymbol = symbol;
+                } catch { }
             }
 
-            const formattedBalance = Number(ethers.formatUnits(balance, decimals));
-            console.log('Formatted balance:', formattedBalance);
-            return formattedBalance;
+            const value = Number(ethers.formatUnits(balance, decimals));
+            lastBalanceByAccount.set(account, value);
+            return value;
         } catch (error) {
             console.error('Error getting token balance:', error);
-            return 0;
+            const cached = lastBalanceByAccount.get(account);
+            return typeof cached === 'number' ? cached : 0;
         }
     };
 
     // Get current allowance
     const getAllowance = async (): Promise<number> => {
-        if (!account) {
-            console.log('No account connected, returning 0 allowance');
-            return 0;
-        }
-
+        if (!account) return 0;
         try {
-            console.log('Getting allowance from:', TOKEN_ADDRESS, 'for account:', account, 'spender:', currentContractAddress);
-            const tokenContract = new ethers.Contract(
+            const tokenPrimary = new ethers.Contract(
                 TOKEN_ADDRESS!,
                 [
                     'function allowance(address owner, address spender) view returns (uint256)',
@@ -223,25 +300,38 @@ export function useContract(callbacks?: ContractCallbacks, contractAddress?: str
                 ],
                 rpcProvider
             );
+            const tokenAlt = rpcProviderAlt ? new ethers.Contract(
+                TOKEN_ADDRESS!,
+                [
+                    'function allowance(address owner, address spender) view returns (uint256)',
+                    'function decimals() view returns (uint8)'
+                ],
+                rpcProviderAlt
+            ) : null;
 
-            const allowance = await tokenContract.allowance(account, currentContractAddress!);
-            console.log('Raw allowance:', allowance.toString());
+            const allowanceBN = await withRetries(() => callWithProviderFailover(
+                () => tokenPrimary.allowance(account, currentContractAddress!),
+                () => tokenAlt!.allowance(account, currentContractAddress!)
+            ));
 
-            // Try to get decimals, but don't fail if it doesn't work
-            let decimals = 18; // Default to 18
-            try {
-                decimals = await tokenContract.decimals();
-                console.log('Token decimals:', decimals);
-            } catch (decimalsError) {
-                console.warn('Could not get token decimals, using default 18:', decimalsError);
+            let decimals = cachedTokenDecimals ?? 18;
+            if (cachedTokenDecimals == null) {
+                try {
+                    decimals = await withRetries(() => callWithProviderFailover(
+                        () => tokenPrimary.decimals(),
+                        () => tokenAlt!.decimals()
+                    ));
+                    cachedTokenDecimals = decimals;
+                } catch { }
             }
 
-            const formattedAllowance = Number(ethers.formatUnits(allowance, decimals));
-            console.log('Formatted allowance:', formattedAllowance);
-            return formattedAllowance;
+            const value = Number(ethers.formatUnits(allowanceBN, decimals));
+            lastAllowanceByKey.set(`${account}-${currentContractAddress}`, value);
+            return value;
         } catch (error) {
             console.error('Error getting allowance:', error);
-            return 0;
+            const cached = lastAllowanceByKey.get(`${account}-${currentContractAddress}`);
+            return typeof cached === 'number' ? cached : 0;
         }
     };
 

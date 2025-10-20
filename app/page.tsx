@@ -10,6 +10,7 @@ import { useContract } from "./hooks/useContract";
 import Image from "next/image";
 import Link from "next/link";
 import { fetchFarcasterProfile, FarcasterProfile } from "./lib/farcaster-profiles";
+import { useConfetti } from "./hooks/useConfetti";
 
 interface Attempt {
     id: number;
@@ -38,6 +39,7 @@ console.log('DEGEN_TOKEN:', DEGEN_TOKEN);
 
 export default function Home() {
     const { isReady, user, signIn, signOut, isFarcasterEnvironment } = useFarcaster();
+    const { triggerConfetti } = useConfetti();
 
     const [guess, setGuess] = useState("");
     const [pot, setPot] = useState(0);
@@ -50,22 +52,21 @@ export default function Home() {
     const loadedAccountRef = useRef<string | null>(null);
     const [winners, setWinners] = useState<Winner[]>([]);
     const [allowance, setAllowance] = useState(0);
-    const loadedAllowanceRef = useRef<string | null>(null);
+    const [isLoadingData, setIsLoadingData] = useState(false);
 
     // Function to fetch Farcaster profiles for winners
-    const fetchWinnerProfiles = async (winners: Winner[]): Promise<Winner[]> => {
+    const fetchWinnerProfiles = async (winners: Winner[]) => {
         if (!isFarcasterEnvironment) {
-            return winners; // No need to fetch profiles outside Farcaster
+            return winners;
         }
 
-        console.log('Fetching Farcaster profiles for winners...');
         const updatedWinners = await Promise.all(
             winners.map(async (winner) => {
                 try {
                     const profile = await fetchFarcasterProfile(winner.address);
                     return {
                         ...winner,
-                        farcasterProfile: profile || undefined // Convert null to undefined
+                        farcasterProfile: profile || undefined
                     };
                 } catch (error) {
                     console.error('Error fetching profile for winner:', winner.address, error);
@@ -74,10 +75,8 @@ export default function Home() {
             })
         );
 
-        console.log('Updated winners with Farcaster profiles:', updatedWinners);
         return updatedWinners;
     };
-    const [isLoadingPot, setIsLoadingPot] = useState(false);
 
     const {
         connectWallet,
@@ -96,6 +95,9 @@ export default function Home() {
         onWin: async (guessedNumber, amount, winnerAddress, txHash) => {
             setLoadingMessage(`🎉 WINNER! You guessed ${guessedNumber} correctly! You won ${amount} DEGEN!`);
 
+            // Trigger confetti celebration! 🎉
+            triggerConfetti();
+
             // Add to winners list
             const newWinner: Winner = {
                 id: Date.now(),
@@ -109,23 +111,22 @@ export default function Home() {
             setTimeout(async () => {
                 setLoadingMessage('');
                 setIsWinning(false);
-                // Refresh both public and user data after win
-                await loadPublicData();
-                if (isConnected) {
-                    // Add a small delay to ensure transaction is fully processed
-                    await new Promise(resolve => setTimeout(resolve, 2000));
-                    // Refresh user data including allowance
-                    const [balance, guesses, wins, allowanceAmount] = await Promise.all([
+                // Reload user data after win
+                try {
+                    const [balance, guesses, wins, allowanceAmount, potValue] = await Promise.all([
                         getTokenBalance(),
-                        account ? getPlayerGuesses(account) : Promise.resolve(0),
-                        account ? getPlayerWins(account) : Promise.resolve(0),
-                        getAllowance()
+                        getPlayerGuesses(account!),
+                        getPlayerWins(account!),
+                        getAllowance(),
+                        getPot()
                     ]);
                     setTokenBalance(balance);
                     setTotalGuesses(guesses);
                     setPlayerWins(wins);
                     setAllowance(allowanceAmount);
-                    console.log('Post-win allowance refresh:', allowanceAmount);
+                    setPot(potValue);
+                } catch (error) {
+                    console.error('Error reloading data after win:', error);
                 }
             }, 5000);
         },
@@ -134,23 +135,22 @@ export default function Home() {
             setTimeout(async () => {
                 setLoadingMessage('');
                 setIsWinning(false);
-                // Refresh both public and user data after miss
-                await loadPublicData();
-                if (isConnected) {
-                    // Add a small delay to ensure transaction is fully processed
-                    await new Promise(resolve => setTimeout(resolve, 2000));
-                    // Refresh user data including allowance
-                    const [balance, guesses, wins, allowanceAmount] = await Promise.all([
+                // Reload user data after miss
+                try {
+                    const [balance, guesses, wins, allowanceAmount, potValue] = await Promise.all([
                         getTokenBalance(),
-                        account ? getPlayerGuesses(account) : Promise.resolve(0),
-                        account ? getPlayerWins(account) : Promise.resolve(0),
-                        getAllowance()
+                        getPlayerGuesses(account!),
+                        getPlayerWins(account!),
+                        getAllowance(),
+                        getPot()
                     ]);
                     setTokenBalance(balance);
                     setTotalGuesses(guesses);
                     setPlayerWins(wins);
                     setAllowance(allowanceAmount);
-                    console.log('Post-miss allowance refresh:', allowanceAmount);
+                    setPot(potValue);
+                } catch (error) {
+                    console.error('Error reloading data after miss:', error);
                 }
             }, 3000);
         },
@@ -164,42 +164,72 @@ export default function Home() {
 
     const isDemoMode = GUESS_GAME_CONTRACT === '0x0000000000000000000000000000000000000000';
 
-    const loadPublicData = async () => {
-        try {
-            console.log('Loading public contract data...');
-            console.log('Contract address:', GUESS_GAME_CONTRACT);
-            console.log('Is demo mode:', isDemoMode);
+    // Load pot and winners immediately on mount - PUBLIC DATA
+    useEffect(() => {
+        if (isDemoMode) return;
 
-            setIsLoadingPot(true);
-            const [potValue, pastWinners] = await Promise.all([
-                getPot(),
-                getPastWinners(10)
-            ]);
+        const loadPublicData = async () => {
+            try {
+                setIsLoadingData(true);
+                const [potValue, pastWinners] = await Promise.all([
+                    getPot(),
+                    getPastWinners(10)
+                ]);
 
-            console.log('Public data loaded:');
-            console.log('Pot value:', potValue);
-            console.log('Past winners:', pastWinners);
+                setPot(potValue);
 
-            setPot(potValue);
+                const formattedWinners: Winner[] = pastWinners.map((winner, index) => ({
+                    id: Date.now() - index,
+                    address: winner.player,
+                    amount: parseFloat(winner.amount),
+                    timestamp: winner.timestamp,
+                    txHash: winner.txHash
+                }));
 
-            // Convert past winners to Winner format
-            const formattedWinners: Winner[] = pastWinners.map((winner, index) => ({
-                id: Date.now() - index,
-                address: winner.player,
-                amount: parseFloat(winner.amount),
-                timestamp: winner.timestamp,
-                txHash: winner.txHash // Use the txHash from the winner data
-            }));
+                const winnersWithProfiles = await fetchWinnerProfiles(formattedWinners);
+                setWinners(winnersWithProfiles);
+            } catch (error) {
+                console.error('Error loading public data:', error);
+            } finally {
+                setIsLoadingData(false);
+            }
+        };
 
-            // Fetch Farcaster profiles if in Farcaster environment
-            const winnersWithProfiles = await fetchWinnerProfiles(formattedWinners);
-            setWinners(winnersWithProfiles);
-        } catch (error) {
-            console.error('Error loading public data:', error);
-        } finally {
-            setIsLoadingPot(false);
+        loadPublicData();
+    }, [isDemoMode]);
+
+    // Load personal data ONLY when wallet connects - USER DATA
+    useEffect(() => {
+        if (!isConnected || !account || isDemoMode) {
+            setTokenBalance(0);
+            setTotalGuesses(0);
+            setPlayerWins(0);
+            setAllowance(0);
+            return;
         }
-    };
+
+        const handle = setTimeout(async () => {
+            try {
+                const [balance, guesses, wins, allowanceAmount] = await Promise.all([
+                    getTokenBalance(),
+                    getPlayerGuesses(account),
+                    getPlayerWins(account),
+                    getAllowance()
+                ]);
+
+                setTokenBalance(balance);
+                setTotalGuesses(guesses);
+                setPlayerWins(wins);
+                setAllowance(allowanceAmount);
+
+                console.log('✅ User data loaded - Balance:', balance, 'Guesses:', guesses, 'Wins:', wins, 'Allowance:', allowanceAmount);
+            } catch (error) {
+                console.error('Error loading user data:', error);
+            }
+        }, 400);
+
+        return () => clearTimeout(handle);
+    }, [isConnected, account, isDemoMode]);
 
     // Auto-connect wallet in Farcaster environment
     useEffect(() => {
@@ -208,107 +238,6 @@ export default function Home() {
             connectWallet();
         }
     }, [isReady, isFarcasterEnvironment, isConnected, isLoading, connectWallet]);
-
-    // Load public contract data (pot and past winners) immediately and when contract changes
-    useEffect(() => {
-        if (!isDemoMode) {
-            console.log('Loading public data for contract:', GUESS_GAME_CONTRACT);
-            loadPublicData();
-        }
-    }, [isDemoMode, GUESS_GAME_CONTRACT]);
-
-    // Periodic pot refresh to ensure it stays up to date
-    useEffect(() => {
-        if (!isDemoMode && isConnected) {
-            const interval = setInterval(() => {
-                console.log('Periodic pot refresh...');
-                loadPublicData();
-            }, 10000); // Refresh every 10 seconds
-
-            return () => clearInterval(interval);
-        }
-    }, [isDemoMode, isConnected, GUESS_GAME_CONTRACT]);
-
-    // Load user-specific data when wallet connects or contract changes
-    useEffect(() => {
-        const loadUserData = async () => {
-            try {
-                console.log('Loading user-specific data...');
-                console.log('Account:', account);
-                console.log('Is connected:', isConnected);
-                console.log('Contract:', GUESS_GAME_CONTRACT);
-
-                if (!account) {
-                    console.log('No account, skipping user data load');
-                    return;
-                }
-
-                const [balance, guesses, wins] = await Promise.all([
-                    getTokenBalance(),
-                    getPlayerGuesses(account),
-                    getPlayerWins(account)
-                ]);
-
-                console.log('User data loaded:');
-                console.log('Balance:', balance);
-                console.log('Guesses:', guesses);
-                console.log('Wins:', wins);
-
-                setTokenBalance(balance);
-                setTotalGuesses(guesses);
-                setPlayerWins(wins);
-
-                console.log('State updated - totalGuesses:', guesses, 'playerWins:', wins);
-            } catch (error) {
-                console.error('Error loading user data:', error);
-            }
-        };
-
-        console.log('useEffect triggered - isConnected:', isConnected, 'isDemoMode:', isDemoMode, 'account:', account, 'contract:', GUESS_GAME_CONTRACT);
-        if (isConnected && !isDemoMode && account) {
-            // Reset refs when contract changes to force reload
-            const contractKey = `${account}-${GUESS_GAME_CONTRACT}`;
-            if (loadedAccountRef.current !== contractKey) {
-                console.log('Contract or account changed, reloading user data...');
-                loadedAccountRef.current = contractKey;
-                loadUserData();
-            }
-        } else if (!isConnected) {
-            // Reset refs when disconnected
-            loadedAccountRef.current = null;
-            loadedAllowanceRef.current = null;
-        }
-    }, [isConnected, isDemoMode, account, GUESS_GAME_CONTRACT, getTokenBalance, getPlayerGuesses, getPlayerWins]);
-
-    // Load allowance separately to avoid resetting it unnecessarily
-    const loadAllowance = useCallback(async (retryCount = 0) => {
-        if (isConnected && account && !isDemoMode) {
-            // Use contract key to force reload when contract changes
-            const contractKey = `${account}-${GUESS_GAME_CONTRACT}`;
-            if (loadedAllowanceRef.current !== contractKey) {
-                try {
-                    const allowanceAmount = await getAllowance();
-                    console.log('Loading allowance for account:', account, 'contract:', GUESS_GAME_CONTRACT, 'amount:', allowanceAmount, 'retry:', retryCount);
-
-                    // If allowance is 0 but we expect it to be higher, retry once
-                    if (allowanceAmount === 0 && retryCount === 0) {
-                        console.log('Allowance is 0, retrying in 3 seconds...');
-                        setTimeout(() => loadAllowance(1), 3000);
-                        return;
-                    }
-
-                    setAllowance(allowanceAmount);
-                    loadedAllowanceRef.current = contractKey;
-                } catch (error) {
-                    console.error('Error loading allowance:', error);
-                }
-            }
-        }
-    }, [isConnected, account, isDemoMode, GUESS_GAME_CONTRACT, getAllowance]);
-
-    useEffect(() => {
-        loadAllowance();
-    }, [loadAllowance]);
 
     const handleApprove = async () => {
         if (!isConnected) {
@@ -321,19 +250,20 @@ export default function Home() {
             setLoadingMessage('Approving 100 DEGEN...');
             const success = await approveTokens('100');
             if (success) {
-                setLoadingMessage('✅ Approval successful! You can now make a guess.');
-                // Update allowance after successful approval
-                const newAllowance = await getAllowance();
-                setAllowance(newAllowance);
-                setTimeout(() => setLoadingMessage(''), 3000);
+                setLoadingMessage('✅ Approval successful!');
+                // Reload user data after approval
+                await new Promise(resolve => setTimeout(resolve, 500));
+                const allowanceAmount = await getAllowance();
+                setAllowance(allowanceAmount);
+                setTimeout(() => setLoadingMessage(''), 2000);
             } else {
                 setLoadingMessage('❌ Approval failed. Please try again.');
-                setTimeout(() => setLoadingMessage(''), 3000);
+                setTimeout(() => setLoadingMessage(''), 2000);
             }
         } catch (error) {
             console.error('Error approving tokens:', error);
             setLoadingMessage('❌ Approval failed: ' + (error as Error).message);
-            setTimeout(() => setLoadingMessage(''), 3000);
+            setTimeout(() => setLoadingMessage(''), 2000);
         } finally {
             setIsWinning(false);
         }
@@ -369,6 +299,8 @@ export default function Home() {
             setTimeout(() => {
                 const targetNumber = Math.floor(Math.random() * 100) + 1;
                 if (guessNum === targetNumber) {
+                    // Trigger confetti celebration! 🎉
+                    triggerConfetti();
                     alert(`🎉 WINNER! You guessed ${guessNum} correctly! You won ${pot + 90} $DEGEN!`);
                     setPot(900);
                     setAttempts([]);
@@ -448,19 +380,20 @@ export default function Home() {
             setLoadingMessage(`Approving ${amount} DEGEN...`);
             const success = await approveTokens(amount.toString());
             if (success) {
-                setLoadingMessage(`✅ Approval successful! You can now make ${Math.floor(amount / 100)} guesses.`);
-                // Update allowance after successful approval
-                const newAllowance = await getAllowance();
-                setAllowance(newAllowance);
-                setTimeout(() => setLoadingMessage(''), 3000);
+                setLoadingMessage(`✅ Approval successful!`);
+                // Reload user data after approval
+                await new Promise(resolve => setTimeout(resolve, 500));
+                const allowanceAmount = await getAllowance();
+                setAllowance(allowanceAmount);
+                setTimeout(() => setLoadingMessage(''), 2000);
             } else {
                 setLoadingMessage('❌ Approval failed. Please try again.');
-                setTimeout(() => setLoadingMessage(''), 3000);
+                setTimeout(() => setLoadingMessage(''), 2000);
             }
         } catch (error) {
             console.error('Error pre-approving tokens:', error);
             setLoadingMessage('❌ Approval failed: ' + (error as Error).message);
-            setTimeout(() => setLoadingMessage(''), 3000);
+            setTimeout(() => setLoadingMessage(''), 2000);
         } finally {
             setIsWinning(false);
         }
@@ -477,19 +410,20 @@ export default function Home() {
             setLoadingMessage('Revoking approval...');
             const success = await approveTokens('0');
             if (success) {
-                setLoadingMessage('✅ Approval revoked successfully!');
-                // Update allowance after successful revocation
-                const newAllowance = await getAllowance();
-                setAllowance(newAllowance);
-                setTimeout(() => setLoadingMessage(''), 3000);
+                setLoadingMessage('✅ Approval revoked!');
+                // Reload user data after revocation
+                await new Promise(resolve => setTimeout(resolve, 500));
+                const allowanceAmount = await getAllowance();
+                setAllowance(allowanceAmount);
+                setTimeout(() => setLoadingMessage(''), 2000);
             } else {
                 setLoadingMessage('❌ Revocation failed. Please try again.');
-                setTimeout(() => setLoadingMessage(''), 3000);
+                setTimeout(() => setLoadingMessage(''), 2000);
             }
         } catch (error) {
             console.error('Error revoking approval:', error);
             setLoadingMessage('❌ Revocation failed: ' + (error as Error).message);
-            setTimeout(() => setLoadingMessage(''), 3000);
+            setTimeout(() => setLoadingMessage(''), 2000);
         } finally {
             setIsWinning(false);
         }
@@ -553,7 +487,7 @@ export default function Home() {
                                     <Trophy className="w-5 h-5" />
                                 </div>
                                 <div className="text-7xl font-black bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent neon-glow">
-                                    {isLoadingPot ? (
+                                    {isLoadingData ? (
                                         <div className="animate-pulse">...</div>
                                     ) : (
                                         Math.floor(pot)
