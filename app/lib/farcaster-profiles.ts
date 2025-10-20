@@ -18,6 +18,19 @@ interface CachedProfile {
 
 const profileCache = new Map<string, CachedProfile>();
 
+async function fetchWithRetry(url: string, attempts = 2): Promise<Response> {
+    let lastErr: unknown;
+    for (let i = 0; i < attempts; i++) {
+        try {
+            return await fetch(url);
+        } catch (e) {
+            lastErr = e;
+            await new Promise(r => setTimeout(r, 150));
+        }
+    }
+    throw lastErr;
+}
+
 /**
  * Fetch Farcaster profile data for a wallet address via server proxy
  */
@@ -29,7 +42,9 @@ export async function fetchFarcasterProfile(walletAddress: string): Promise<Farc
 
     try {
         console.log('Fetching Farcaster profile for wallet:', walletAddress);
-        const res = await fetch(`/api/farcaster-profile?address=${walletAddress}`);
+        const origin = typeof window !== 'undefined' ? window.location.origin : '';
+        const url = `${origin}/api/farcaster-profile?address=${walletAddress}`;
+        const res = await fetchWithRetry(url);
         if (!res.ok) {
             profileCache.set(walletAddress, { profile: null, timestamp: Date.now() });
             return null;
