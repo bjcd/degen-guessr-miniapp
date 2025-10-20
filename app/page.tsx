@@ -9,6 +9,7 @@ import { useFarcaster } from "./farcaster-provider";
 import { useContract } from "./hooks/useContract";
 import Image from "next/image";
 import Link from "next/link";
+import { fetchFarcasterProfile, FarcasterProfile } from "./lib/farcaster-profiles";
 
 interface Attempt {
     id: number;
@@ -22,6 +23,7 @@ interface Winner {
     amount: number;
     timestamp: Date;
     txHash?: string;
+    farcasterProfile?: FarcasterProfile;
 }
 
 const DEGEN_TOKEN = process.env.NEXT_PUBLIC_DEGEN_TOKEN_ADDRESS || '0x4ed4E862860beD51a9570b96d89aF5E1B0Efefed';
@@ -49,6 +51,32 @@ export default function Home() {
     const [winners, setWinners] = useState<Winner[]>([]);
     const [allowance, setAllowance] = useState(0);
     const loadedAllowanceRef = useRef<string | null>(null);
+
+    // Function to fetch Farcaster profiles for winners
+    const fetchWinnerProfiles = async (winners: Winner[]): Promise<Winner[]> => {
+        if (!isFarcasterEnvironment) {
+            return winners; // No need to fetch profiles outside Farcaster
+        }
+
+        console.log('Fetching Farcaster profiles for winners...');
+        const updatedWinners = await Promise.all(
+            winners.map(async (winner) => {
+                try {
+                    const profile = await fetchFarcasterProfile(winner.address);
+                    return {
+                        ...winner,
+                        farcasterProfile: profile || undefined // Convert null to undefined
+                    };
+                } catch (error) {
+                    console.error('Error fetching profile for winner:', winner.address, error);
+                    return winner;
+                }
+            })
+        );
+
+        console.log('Updated winners with Farcaster profiles:', updatedWinners);
+        return updatedWinners;
+    };
     const [isLoadingPot, setIsLoadingPot] = useState(false);
 
     const {
@@ -162,7 +190,10 @@ export default function Home() {
                 timestamp: winner.timestamp,
                 txHash: winner.txHash // Use the txHash from the winner data
             }));
-            setWinners(formattedWinners);
+
+            // Fetch Farcaster profiles if in Farcaster environment
+            const winnersWithProfiles = await fetchWinnerProfiles(formattedWinners);
+            setWinners(winnersWithProfiles);
         } catch (error) {
             console.error('Error loading public data:', error);
         } finally {
@@ -708,9 +739,31 @@ export default function Home() {
                                             className="p-4 bg-gradient-to-r from-primary/10 to-secondary/10 rounded-lg border border-primary/30 hover:border-primary/50 transition-colors"
                                         >
                                             <div className="flex items-center justify-between mb-2">
-                                                <span className="text-sm font-bold text-foreground font-mono">
-                                                    {winner.address.slice(0, 6)}...{winner.address.slice(-4)}
-                                                </span>
+                                                <div className="flex items-center gap-2">
+                                                    {winner.farcasterProfile ? (
+                                                        <>
+                                                            <Image
+                                                                src={winner.farcasterProfile.pfpUrl}
+                                                                alt={winner.farcasterProfile.displayName}
+                                                                width={24}
+                                                                height={24}
+                                                                className="w-6 h-6 rounded-full"
+                                                            />
+                                                            <div className="flex flex-col">
+                                                                <span className="text-sm font-bold text-foreground">
+                                                                    {winner.farcasterProfile.displayName}
+                                                                </span>
+                                                                <span className="text-xs text-muted-foreground">
+                                                                    @{winner.farcasterProfile.username}
+                                                                </span>
+                                                            </div>
+                                                        </>
+                                                    ) : (
+                                                        <span className="text-sm font-bold text-foreground font-mono">
+                                                            {winner.address.slice(0, 6)}...{winner.address.slice(-4)}
+                                                        </span>
+                                                    )}
+                                                </div>
                                                 <Trophy className={`w-4 h-4 ${index === 0 ? 'text-yellow-400 animate-pulse' : 'text-primary'}`} />
                                             </div>
                                             <div className="flex items-center justify-between mb-2">
