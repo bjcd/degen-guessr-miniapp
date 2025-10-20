@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
+import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { sdk } from '@farcaster/miniapp-sdk';
 
 interface FarcasterUser {
@@ -28,15 +28,15 @@ export function FarcasterProvider({ children }: { children: ReactNode }) {
 
     useEffect(() => {
         const initFarcaster = async () => {
-            console.log('Initializing Farcaster provider...');
+            console.log('🔧 Initializing Farcaster provider...');
 
             // Use official SDK method to detect MiniApp environment
             let isInFarcaster = false;
             try {
                 isInFarcaster = await sdk.isInMiniApp();
-                console.log('SDK isInMiniApp result:', isInFarcaster);
+                console.log('📱 SDK isInMiniApp result:', isInFarcaster);
             } catch (error) {
-                console.warn('Error checking isInMiniApp:', error);
+                console.warn('⚠️ Error checking isInMiniApp:', error);
                 // Fallback to custom detection
                 isInFarcaster = typeof window !== 'undefined' &&
                     (window.location !== window.parent.location ||
@@ -46,20 +46,20 @@ export function FarcasterProvider({ children }: { children: ReactNode }) {
                         (window as any).farcaster);
             }
 
-            console.log('Is in Farcaster environment:', isInFarcaster);
+            console.log('🌐 Is in Farcaster environment:', isInFarcaster);
             setIsFarcasterEnvironment(isInFarcaster);
 
             // Always call sdk.actions.ready() to dismiss splash screen
             try {
-                console.log('Calling sdk.actions.ready()...');
+                console.log('🚀 Calling sdk.actions.ready()...');
                 await sdk.actions.ready();
-                console.log('Farcaster SDK ready - splash screen hidden');
+                console.log('✅ Farcaster SDK ready - splash screen hidden');
             } catch (sdkError) {
-                console.warn('Farcaster SDK not available:', sdkError);
+                console.warn('⚠️ Farcaster SDK not available:', sdkError);
             }
 
             // Set ready immediately after calling sdk.actions.ready()
-            console.log('Setting Farcaster provider ready');
+            console.log('✅ Setting Farcaster provider ready');
             setIsReady(true);
         };
 
@@ -118,7 +118,7 @@ export function FarcasterProvider({ children }: { children: ReactNode }) {
         }
     };
 
-    const getEthereumProvider = useCallback(async () => {
+    const getEthereumProvider = async () => {
         console.log('=== getEthereumProvider called ===');
         console.log('isFarcasterEnvironment:', isFarcasterEnvironment);
         console.log('isReady:', isReady);
@@ -147,7 +147,7 @@ export function FarcasterProvider({ children }: { children: ReactNode }) {
             if (!isReady || !sdk?.wallet) {
                 console.log('SDK not ready yet, waiting...');
                 await new Promise(resolve => setTimeout(resolve, 1000));
-                
+
                 if (!sdk?.wallet) {
                     console.warn('SDK still not ready after waiting');
                     return null;
@@ -158,7 +158,7 @@ export function FarcasterProvider({ children }: { children: ReactNode }) {
                 // Check if wallet capability is available
                 const capabilities = await sdk.getCapabilities();
                 console.log('Available capabilities:', capabilities);
-                
+
                 if (!capabilities.includes('wallet.getEthereumProvider')) {
                     console.warn('⚠ Wallet capability not available in capabilities list');
                     console.log('Looking for: wallet.getEthereumProvider');
@@ -208,7 +208,7 @@ export function FarcasterProvider({ children }: { children: ReactNode }) {
 
             throw new Error('No wallet found. Please install MetaMask or another Web3 wallet.');
         }
-    }, [isFarcasterEnvironment, isReady]);
+    };
 
     return (
         <FarcasterContext.Provider

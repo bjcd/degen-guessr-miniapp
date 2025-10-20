@@ -246,12 +246,26 @@ export default function SuperDegenHome() {
 
     // Auto-connect wallet in Farcaster environment
     useEffect(() => {
-        console.log('Auto-connect check (super-degen):', { isReady, isFarcasterEnvironment, isConnected, isLoading });
-        if (isReady && isFarcasterEnvironment && !isConnected && !isLoading) {
-            console.log('Auto-connecting wallet in Farcaster environment...');
+        console.log('Super Degen Auto-connect useEffect triggered:', {
+            isReady,
+            isFarcasterEnvironment,
+            isConnected,
+            isLoading,
+            connectWallet: typeof connectWallet
+        });
+
+        if (isReady && isFarcasterEnvironment && !isConnected) {
+            console.log('🚀 Super Degen Auto-connecting wallet in Farcaster environment...');
             connectWallet();
+        } else {
+            console.log('❌ Super Degen Auto-connect conditions not met:', {
+                isReady,
+                isFarcasterEnvironment,
+                isConnected,
+                isLoading
+            });
         }
-    }, [isReady, isFarcasterEnvironment, isConnected, isLoading, connectWallet]);
+    }, [isReady, isFarcasterEnvironment, isConnected, connectWallet]);
 
     const handleApprove = async () => {
         if (!isConnected) {
