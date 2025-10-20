@@ -54,7 +54,7 @@ export default function ModeSelectionDialog({ isOpen, onSelectMode, onClose }: M
                     <div className="flex items-center justify-center gap-3 mb-4">
                         <Image src="/degen-logo.png" alt="Degen Hat" width={48} height={48} className="w-12 h-12 object-contain animate-[bounce_2s_ease-in-out_infinite]" />
                         <h1 className="text-4xl font-black bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent neon-glow">
-                            CHOOSE YOUR MODE
+                            CHOOSE MODE
                         </h1>
                         <Image src="/degen-logo.png" alt="Degen Hat" width={48} height={48} className="w-12 h-12 object-contain animate-[bounce_2s_ease-in-out_infinite] scale-x-[-1]" />
                     </div>
@@ -99,7 +99,7 @@ export default function ModeSelectionDialog({ isOpen, onSelectMode, onClose }: M
                                         </div>
                                         <div className="flex items-center justify-center gap-2 text-sm">
                                             <Sparkles className="w-4 h-4 text-primary" />
-                                            <span>1 in 100 chances to hit the pot</span>
+                                            <span>1 in 100 chances</span>
                                         </div>
                                     </div>
                                 </div>
@@ -149,7 +149,7 @@ export default function ModeSelectionDialog({ isOpen, onSelectMode, onClose }: M
                                         </div>
                                         <div className="flex items-center justify-center gap-2 text-sm">
                                             <Sparkles className="w-4 h-4 text-yellow-400" />
-                                            <span>1 in 10 chances to hit the pot</span>
+                                            <span>1 in 10 chances</span>
                                         </div>
                                     </div>
                                 </div>
