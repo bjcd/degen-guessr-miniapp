@@ -31,25 +31,31 @@ export async function fetchFarcasterProfile(walletAddress: string): Promise<Farc
     }
 
     try {
-        console.log('Fetching Farcaster profile for wallet:', walletAddress);
+        console.log('🔍 Fetching Farcaster profile for wallet:', walletAddress);
 
         // Use Farcaster's API to resolve wallet address to FID
-        const response = await fetch(`https://api.warpcast.com/v2/verifications?address=${walletAddress}`, {
+        const verificationUrl = `https://api.warpcast.com/v2/verifications?address=${walletAddress}`;
+        console.log('📡 Making request to:', verificationUrl);
+        
+        const response = await fetch(verificationUrl, {
             headers: {
                 'Accept': 'application/json',
             },
         });
 
+        console.log('📡 Response status:', response.status, response.statusText);
+
         if (!response.ok) {
-            console.log('No Farcaster profile found for wallet:', walletAddress, 'Status:', response.status);
+            console.log('❌ No Farcaster profile found for wallet:', walletAddress, 'Status:', response.status);
             profileCache.set(walletAddress, { profile: null, timestamp: Date.now() });
             return null;
         }
 
         const data = await response.json();
+        console.log('📡 Verification response data:', data);
 
         if (!data.result || !data.result.verifications || data.result.verifications.length === 0) {
-            console.log('No verifications found for wallet:', walletAddress);
+            console.log('❌ No verifications found for wallet:', walletAddress);
             profileCache.set(walletAddress, { profile: null, timestamp: Date.now() });
             return null;
         }
@@ -57,24 +63,31 @@ export async function fetchFarcasterProfile(walletAddress: string): Promise<Farc
         // Get the first verification (most recent)
         const verification = data.result.verifications[0];
         const fid = verification.fid;
+        console.log('✅ Found verification for FID:', fid);
 
         // Now fetch the profile data for this FID
-        const profileResponse = await fetch(`https://api.warpcast.com/v2/user?fid=${fid}`, {
+        const profileUrl = `https://api.warpcast.com/v2/user?fid=${fid}`;
+        console.log('📡 Fetching profile from:', profileUrl);
+        
+        const profileResponse = await fetch(profileUrl, {
             headers: {
                 'Accept': 'application/json',
             },
         });
 
+        console.log('📡 Profile response status:', profileResponse.status, profileResponse.statusText);
+
         if (!profileResponse.ok) {
-            console.log('Failed to fetch profile for FID:', fid, 'Status:', profileResponse.status);
+            console.log('❌ Failed to fetch profile for FID:', fid, 'Status:', profileResponse.status);
             profileCache.set(walletAddress, { profile: null, timestamp: Date.now() });
             return null;
         }
 
         const profileData = await profileResponse.json();
+        console.log('📡 Profile response data:', profileData);
 
         if (!profileData.result || !profileData.result.user) {
-            console.log('No user data found for FID:', fid);
+            console.log('❌ No user data found for FID:', fid);
             profileCache.set(walletAddress, { profile: null, timestamp: Date.now() });
             return null;
         }
@@ -88,7 +101,7 @@ export async function fetchFarcasterProfile(walletAddress: string): Promise<Farc
             walletAddress: walletAddress,
         };
 
-        console.log('Successfully fetched Farcaster profile:', profile);
+        console.log('✅ Successfully fetched Farcaster profile:', profile);
         profileCache.set(walletAddress, { profile, timestamp: Date.now() });
         return profile;
 

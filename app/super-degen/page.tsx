@@ -69,7 +69,7 @@ export default function SuperDegenHome() {
         }
 
         console.log('Fetching Farcaster profiles for', winners.length, 'winners');
-        
+
         const updatedWinners = await Promise.all(
             winners.map(async (winner) => {
                 try {

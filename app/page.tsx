@@ -40,6 +40,13 @@ console.log('DEGEN_TOKEN:', DEGEN_TOKEN);
 
 export default function Home() {
     const { isReady, user, signIn, signOut, isFarcasterEnvironment } = useFarcaster();
+    
+    // Debug Farcaster environment detection
+    console.log('🔍 Farcaster environment status:', {
+        isReady,
+        isFarcasterEnvironment,
+        user: user ? { fid: user.fid, username: user.username } : null
+    });
     const { triggerConfetti } = useConfetti();
 
     const [guess, setGuess] = useState("");
@@ -58,32 +65,48 @@ export default function Home() {
 
     // Function to fetch Farcaster profiles for winners
     const fetchWinnerProfiles = async (winners: Winner[]) => {
-        if (!isFarcasterEnvironment) {
-            console.log('Not in Farcaster environment, skipping profile fetch');
-            return winners;
-        }
+        console.log('🔍 fetchWinnerProfiles called with:', {
+            isFarcasterEnvironment,
+            winnersCount: winners.length,
+            winners: winners.map(w => ({ address: w.address, hasProfile: !!w.farcasterProfile }))
+        });
 
-        console.log('Fetching Farcaster profiles for', winners.length, 'winners');
+        // TEMPORARY: Force profile fetching for debugging
+        console.log('🔧 DEBUGGING: Forcing profile fetch regardless of environment');
+        
+        // if (!isFarcasterEnvironment) {
+        //     console.log('❌ Not in Farcaster environment, skipping profile fetch');
+        //     return winners;
+        // }
+
+        console.log('✅ Fetching profiles for', winners.length, 'winners');
         
         const updatedWinners = await Promise.all(
             winners.map(async (winner) => {
                 try {
+                    console.log('🔍 Fetching profile for winner:', winner.address);
                     const profile = await fetchFarcasterProfile(winner.address);
                     if (profile) {
-                        console.log('Found Farcaster profile for winner:', winner.address, '->', profile.displayName);
+                        console.log('✅ Found Farcaster profile for winner:', winner.address, '->', profile.displayName, profile.username);
                     } else {
-                        console.log('No Farcaster profile found for winner:', winner.address);
+                        console.log('❌ No Farcaster profile found for winner:', winner.address);
                     }
                     return {
                         ...winner,
                         farcasterProfile: profile || undefined
                     };
                 } catch (error) {
-                    console.error('Error fetching profile for winner:', winner.address, error);
+                    console.error('💥 Error fetching profile for winner:', winner.address, error);
                     return winner;
                 }
             })
         );
+
+        console.log('🎯 Final updated winners:', updatedWinners.map(w => ({ 
+            address: w.address, 
+            hasProfile: !!w.farcasterProfile,
+            profileName: w.farcasterProfile?.displayName 
+        })));
 
         return updatedWinners;
     };
