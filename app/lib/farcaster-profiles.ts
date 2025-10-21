@@ -34,7 +34,10 @@ export async function fetchFarcasterProfile(walletAddress: string): Promise<Farc
         console.log('🔍 Fetching Farcaster profile for wallet:', walletAddress);
 
         // Use Farcaster's API to resolve wallet address to FID
-        const response = await fetch(`https://api.warpcast.com/v2/verifications?address=${walletAddress}`, {
+        const url = `https://api.warpcast.com/v2/verifications?address=${walletAddress}`;
+        console.log('🌐 Making request to:', url);
+        
+        const response = await fetch(url, {
             headers: {
                 'Accept': 'application/json',
             },
@@ -59,7 +62,10 @@ export async function fetchFarcasterProfile(walletAddress: string): Promise<Farc
         const fid = verification.fid;
 
         // Now fetch the profile data for this FID
-        const profileResponse = await fetch(`https://api.warpcast.com/v2/user?fid=${fid}`, {
+        const profileUrl = `https://api.warpcast.com/v2/user?fid=${fid}`;
+        console.log('🌐 Making profile request to:', profileUrl);
+        
+        const profileResponse = await fetch(profileUrl, {
             headers: {
                 'Accept': 'application/json',
             },
