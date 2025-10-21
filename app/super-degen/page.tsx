@@ -217,7 +217,7 @@ export default function SuperDegenHome() {
         };
 
         loadPublicData();
-    }, [isDemoMode]);
+    }, [isDemoMode, isFarcasterEnvironment]);
 
     // Load personal data ONLY when wallet connects - USER DATA
     useEffect(() => {

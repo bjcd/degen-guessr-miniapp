@@ -224,7 +224,7 @@ export default function Home() {
         };
 
         loadPublicData();
-    }, [isDemoMode]);
+    }, [isDemoMode, isFarcasterEnvironment]);
 
     // Load personal data ONLY when wallet connects - USER DATA
     useEffect(() => {
