@@ -26,6 +26,7 @@ export async function fetchFarcasterProfile(walletAddress: string): Promise<Farc
     // Check cache first
     const cached = profileCache.get(walletAddress) as CachedProfile | undefined;
     if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+        console.log('Using cached Farcaster profile for:', walletAddress);
         return cached.profile;
     }
 
@@ -40,7 +41,7 @@ export async function fetchFarcasterProfile(walletAddress: string): Promise<Farc
         });
 
         if (!response.ok) {
-            console.log('No Farcaster profile found for wallet:', walletAddress);
+            console.log('No Farcaster profile found for wallet:', walletAddress, 'Status:', response.status);
             profileCache.set(walletAddress, { profile: null, timestamp: Date.now() });
             return null;
         }
@@ -65,7 +66,7 @@ export async function fetchFarcasterProfile(walletAddress: string): Promise<Farc
         });
 
         if (!profileResponse.ok) {
-            console.log('Failed to fetch profile for FID:', fid);
+            console.log('Failed to fetch profile for FID:', fid, 'Status:', profileResponse.status);
             profileCache.set(walletAddress, { profile: null, timestamp: Date.now() });
             return null;
         }
@@ -92,7 +93,7 @@ export async function fetchFarcasterProfile(walletAddress: string): Promise<Farc
         return profile;
 
     } catch (error) {
-        console.error('Error fetching Farcaster profile:', error);
+        console.error('Error fetching Farcaster profile for', walletAddress, ':', error);
         profileCache.set(walletAddress, { profile: null, timestamp: Date.now() });
         return null;
     }

@@ -64,13 +64,21 @@ export default function SuperDegenHome() {
     // Function to fetch Farcaster profiles for winners
     const fetchWinnerProfiles = async (winners: Winner[]) => {
         if (!isFarcasterEnvironment) {
+            console.log('Not in Farcaster environment, skipping profile fetch');
             return winners;
         }
 
+        console.log('Fetching Farcaster profiles for', winners.length, 'winners');
+        
         const updatedWinners = await Promise.all(
             winners.map(async (winner) => {
                 try {
                     const profile = await fetchFarcasterProfile(winner.address);
+                    if (profile) {
+                        console.log('Found Farcaster profile for winner:', winner.address, '->', profile.displayName);
+                    } else {
+                        console.log('No Farcaster profile found for winner:', winner.address);
+                    }
                     return {
                         ...winner,
                         farcasterProfile: profile || undefined
@@ -702,13 +710,20 @@ export default function SuperDegenHome() {
                                                 <div className="flex items-center gap-2">
                                                     {winner.farcasterProfile ? (
                                                         <>
-                                                            <Image
-                                                                src={winner.farcasterProfile.pfpUrl}
-                                                                alt={winner.farcasterProfile.displayName}
-                                                                width={24}
-                                                                height={24}
-                                                                className="w-6 h-6 rounded-full"
-                                                            />
+                                                            <div className="relative">
+                                                                <Image
+                                                                    src={winner.farcasterProfile.pfpUrl}
+                                                                    alt={winner.farcasterProfile.displayName}
+                                                                    width={24}
+                                                                    height={24}
+                                                                    className="w-6 h-6 rounded-full border border-primary/20"
+                                                                    onError={(e) => {
+                                                                        console.log('Failed to load profile image for:', winner.farcasterProfile?.displayName);
+                                                                        // Fallback to a default avatar
+                                                                        (e.target as HTMLImageElement).src = 'https://via.placeholder.com/24x24/6366f1/ffffff?text=' + (winner.farcasterProfile?.displayName?.charAt(0) || '?');
+                                                                    }}
+                                                                />
+                                                            </div>
                                                             <div className="flex flex-col">
                                                                 <span className="text-sm font-bold text-foreground">
                                                                     {winner.farcasterProfile.displayName}
@@ -719,9 +734,16 @@ export default function SuperDegenHome() {
                                                             </div>
                                                         </>
                                                     ) : (
-                                                        <span className="text-sm font-bold text-foreground font-mono">
-                                                            {winner.address.slice(0, 6)}...{winner.address.slice(-4)}
-                                                        </span>
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center">
+                                                                <span className="text-xs font-bold text-muted-foreground">
+                                                                    {winner.address.slice(2, 4).toUpperCase()}
+                                                                </span>
+                                                            </div>
+                                                            <span className="text-sm font-bold text-foreground font-mono">
+                                                                {winner.address.slice(0, 6)}...{winner.address.slice(-4)}
+                                                            </span>
+                                                        </div>
                                                     )}
                                                 </div>
                                                 <Trophy className={`w-4 h-4 ${index === 0 ? 'text-yellow-400 animate-pulse' : 'text-primary'}`} />
