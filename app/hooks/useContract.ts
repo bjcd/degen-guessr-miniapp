@@ -119,11 +119,71 @@ export function useContract(callbacks?: ContractCallbacks, contractAddress?: str
                 console.log('Current network:', network);
 
                 if (Number(network.chainId) !== 8453) {
-                    if (callbacks?.onError) {
-                        callbacks.onError('Please switch to Base Mainnet to use this app. Current network: ' + network.name);
+                    // In Farcaster environment, try to automatically switch to Base
+                    if (isFarcasterEnvironment) {
+                        console.log('🔄 Auto-switching to Base Mainnet in Farcaster environment...');
+                        try {
+                            // Base Mainnet network configuration
+                            const baseNetwork = {
+                                chainId: '0x2105', // 8453 in hex
+                                chainName: 'Base',
+                                nativeCurrency: {
+                                    name: 'Ethereum',
+                                    symbol: 'ETH',
+                                    decimals: 18,
+                                },
+                                rpcUrls: [BASE_RPC_URL],
+                                blockExplorerUrls: ['https://basescan.org'],
+                            };
+
+                            // Try to add the network first (in case it's not added)
+                            try {
+                                await ethProvider.request({
+                                    method: 'wallet_addEthereumChain',
+                                    params: [baseNetwork],
+                                });
+                                console.log('✅ Base network added successfully');
+                            } catch (addError) {
+                                console.log('Base network already exists or add failed:', addError);
+                            }
+
+                            // Switch to Base network
+                            await ethProvider.request({
+                                method: 'wallet_switchEthereumChain',
+                                params: [{ chainId: '0x2105' }],
+                            });
+
+                            console.log('✅ Successfully switched to Base Mainnet');
+
+                            // Re-fetch accounts and network after switch
+                            const newAccounts = await provider.send("eth_requestAccounts", []);
+                            const newNetwork = await provider.getNetwork();
+
+                            if (Number(newNetwork.chainId) !== 8453) {
+                                throw new Error('Failed to switch to Base Mainnet');
+                            }
+
+                            // Update accounts if they changed
+                            if (newAccounts.length > 0) {
+                                accounts.length = 0;
+                                accounts.push(...newAccounts);
+                            }
+                        } catch (switchError) {
+                            console.error('❌ Failed to auto-switch to Base:', switchError);
+                            if (callbacks?.onError) {
+                                callbacks.onError('Please switch to Base Mainnet to use this app. Current network: ' + network.name);
+                            }
+                            setIsLoading(false);
+                            return;
+                        }
+                    } else {
+                        // In regular browser, just show error
+                        if (callbacks?.onError) {
+                            callbacks.onError('Please switch to Base Mainnet to use this app. Current network: ' + network.name);
+                        }
+                        setIsLoading(false);
+                        return;
                     }
-                    setIsLoading(false);
-                    return;
                 }
 
                 const signer = await provider.getSigner();

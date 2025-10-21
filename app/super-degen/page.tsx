@@ -543,7 +543,7 @@ export default function SuperDegenHome() {
                                 />
                             </div>
 
-                            {!isDemoMode && (
+                            {!isDemoMode && allowance < 1000 && (
                                 <Button
                                     onClick={handleApprove}
                                     className="w-full h-14 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 text-white font-black text-lg transition-all duration-300 rounded-2xl flex items-center justify-center gap-2"
