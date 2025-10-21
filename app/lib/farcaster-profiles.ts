@@ -12,17 +12,49 @@ export interface FarcasterProfile {
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 interface CachedProfile {
-  profile: FarcasterProfile | null;
-  timestamp: number;
+    profile: FarcasterProfile | null;
+    timestamp: number;
 }
 
 const profileCache = new Map<string, CachedProfile>();
 
+// Current user profile from SDK context (if available)
+let currentUserProfile: FarcasterProfile | null = null;
+
+/**
+ * Set the current user's profile from SDK context
+ */
+export function setCurrentUserProfile(user: any, walletAddress: string): void {
+    if (user && user.fid) {
+        currentUserProfile = {
+            fid: user.fid,
+            username: user.username || 'unknown',
+            displayName: user.displayName || user.username || 'Unknown User',
+            pfpUrl: user.pfpUrl || 'https://via.placeholder.com/150',
+            walletAddress: walletAddress,
+        };
+        console.log('✅ Set current user profile from SDK context:', currentUserProfile);
+    }
+}
+
+/**
+ * Get the current user's profile from SDK context
+ */
+export function getCurrentUserProfile(): FarcasterProfile | null {
+    return currentUserProfile;
+}
+
 /**
  * Fetch Farcaster profile data for a wallet address
- * Uses the Farcaster API to resolve wallet address to profile
+ * First checks if it's the current user (from SDK context), then falls back to API
  */
 export async function fetchFarcasterProfile(walletAddress: string): Promise<FarcasterProfile | null> {
+    // Check if this is the current user first
+    if (currentUserProfile && currentUserProfile.walletAddress.toLowerCase() === walletAddress.toLowerCase()) {
+        console.log('✅ Using current user profile from SDK context for:', walletAddress);
+        return currentUserProfile;
+    }
+
     // Check cache first
     const cached = profileCache.get(walletAddress) as CachedProfile | undefined;
     if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
@@ -34,10 +66,7 @@ export async function fetchFarcasterProfile(walletAddress: string): Promise<Farc
         console.log('🔍 Fetching Farcaster profile for wallet:', walletAddress);
 
         // Use Farcaster's API to resolve wallet address to FID
-        const url = `https://api.warpcast.com/v2/verifications?address=${walletAddress}`;
-        console.log('🌐 Making request to:', url);
-        
-        const response = await fetch(url, {
+        const response = await fetch(`https://api.warpcast.com/v2/verifications?address=${walletAddress}`, {
             headers: {
                 'Accept': 'application/json',
             },
@@ -62,10 +91,7 @@ export async function fetchFarcasterProfile(walletAddress: string): Promise<Farc
         const fid = verification.fid;
 
         // Now fetch the profile data for this FID
-        const profileUrl = `https://api.warpcast.com/v2/user?fid=${fid}`;
-        console.log('🌐 Making profile request to:', profileUrl);
-        
-        const profileResponse = await fetch(profileUrl, {
+        const profileResponse = await fetch(`https://api.warpcast.com/v2/user?fid=${fid}`, {
             headers: {
                 'Accept': 'application/json',
             },

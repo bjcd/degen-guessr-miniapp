@@ -9,7 +9,7 @@ import { useFarcaster } from "./farcaster-provider";
 import { useContract } from "./hooks/useContract";
 import Image from "next/image";
 import Link from "next/link";
-import { fetchFarcasterProfile, FarcasterProfile } from "./lib/farcaster-profiles";
+import { fetchFarcasterProfile, FarcasterProfile, setCurrentUserProfile } from "./lib/farcaster-profiles";
 import { useConfetti } from "./hooks/useConfetti";
 import ModeSelectionDialog from "./components/ModeSelectionDialog";
 
@@ -250,6 +250,11 @@ export default function Home() {
                 setPlayerWins(wins);
                 setAllowance(allowanceAmount);
 
+                // Set current user profile for Farcaster context
+                if (isFarcasterEnvironment && user) {
+                    setCurrentUserProfile(user, account);
+                }
+
                 console.log('✅ User data loaded - Balance:', balance, 'Guesses:', guesses, 'Wins:', wins, 'Allowance:', allowanceAmount);
             } catch (error) {
                 console.error('Error loading user data:', error);
@@ -257,7 +262,7 @@ export default function Home() {
         }, 400);
 
         return () => clearTimeout(handle);
-    }, [isConnected, account, isDemoMode]);
+    }, [isConnected, account, isDemoMode, isFarcasterEnvironment, user]);
 
     // Auto-connect wallet in Farcaster environment
     useEffect(() => {
