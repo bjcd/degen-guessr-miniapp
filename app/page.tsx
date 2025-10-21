@@ -618,11 +618,11 @@ export default function Home() {
                                     <div className="text-2xl">🎩</div>
                                     <div className="flex-1">
                                         <div className="flex items-center gap-2 text-primary font-bold text-lg">
-                                            Degen Mode
+                                            You're in Degen Mode.
                                             <span className="text-green-400 text-sm">✓</span>
                                         </div>
                                         <p className="text-muted-foreground text-sm mt-1">
-                                            You're in Degen Mode. Switch to Super Degen Mode for better odds, higher stakes.
+                                            Switch to Super Degen Mode for better odds, higher stakes.
                                         </p>
                                         <p className="text-xs text-muted-foreground/70 mt-1">
                                             1 in 100 chances to hit the pot
