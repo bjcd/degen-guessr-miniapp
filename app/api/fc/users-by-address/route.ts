@@ -36,6 +36,8 @@ export async function POST(req: NextRequest) {
 
     console.log('🔍 Calling Neynar API with addresses:', addrs);
     
+    let users: any[] = [];
+    
     try {
       // Use regular Neynar API (not Snapchain)
       const response = await fetch(`https://api.neynar.com/v2/farcaster/user/bulk-by-address?addresses=${addrs.join(',')}`, {
@@ -58,7 +60,6 @@ export async function POST(req: NextRequest) {
       console.log('🔍 Neynar API response:', JSON.stringify(neynarResponse, null, 2));
       
       // Convert the response format to match our expected structure
-      const users: any[] = [];
       for (const [address, userArray] of Object.entries(neynarResponse)) {
         if (Array.isArray(userArray)) {
           users.push(...userArray);
