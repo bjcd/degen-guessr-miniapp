@@ -55,11 +55,30 @@ export default function SuperDegenHome() {
     const loadedAllowanceRef = useRef<string | null>(null);
     const [isLoadingPot, setIsLoadingPot] = useState(false);
     const [isLoadingData, setIsLoadingData] = useState(false);
+    const [currentUserFarcasterProfile, setCurrentUserFarcasterProfile] = useState<FarcasterProfile | null>(null);
 
     // Simple ref to track the current contract/account combo to avoid duplicate loads
     const currentContextRef = useRef<string>('');
 
     const isDemoMode = SUPER_DEGEN_CONTRACT === '0x0000000000000000000000000000000000000000';
+
+    // Function to fetch current user's Farcaster profile
+    const fetchCurrentUserProfile = async (walletAddress: string) => {
+        if (!isFarcasterEnvironment) {
+            console.log('❌ Not in Farcaster environment, skipping current user profile fetch');
+            return null;
+        }
+
+        try {
+            console.log('🔍 Fetching current user Farcaster profile for:', walletAddress);
+            const profile = await fetchFarcasterProfile(walletAddress);
+            console.log('🔍 Current user profile result:', profile);
+            return profile;
+        } catch (error) {
+            console.error('❌ Error fetching current user profile:', error);
+            return null;
+        }
+    };
 
     // Function to fetch Farcaster profiles for winners
     const fetchWinnerProfiles = async (winners: Winner[]) => {
@@ -246,6 +265,13 @@ export default function SuperDegenHome() {
                 // Set current user profile for Farcaster context
                 if (isFarcasterEnvironment && user) {
                     setCurrentUserProfile(user, account);
+                }
+
+                // Fetch current user's Farcaster profile for display
+                if (isFarcasterEnvironment) {
+                    fetchCurrentUserProfile(account).then(profile => {
+                        setCurrentUserFarcasterProfile(profile);
+                    });
                 }
 
                 console.log('✅ User data loaded - Balance:', balance, 'Guesses:', guesses, 'Wins:', wins, 'Allowance:', allowanceAmount);
@@ -502,8 +528,27 @@ export default function SuperDegenHome() {
                         {isDemoMode ? (
                             <div className="text-yellow-400 text-sm font-bold">DEMO MODE</div>
                         ) : isConnected ? (
-                            <div className="text-green-400 text-sm font-bold">
-                                Connected: {account?.slice(0, 6)}...{account?.slice(-4)}
+                            <div className="text-green-400 text-sm font-bold flex items-center gap-2">
+                                {isFarcasterEnvironment && currentUserFarcasterProfile ? (
+                                    <>
+                                        <div className="flex items-center gap-2">
+                                            <img 
+                                                src={currentUserFarcasterProfile.pfp || '/default-avatar.png'} 
+                                                alt="Profile" 
+                                                className="w-6 h-6 rounded-full"
+                                                onError={(e) => {
+                                                    e.currentTarget.src = '/default-avatar.png';
+                                                }}
+                                            />
+                                            <span>@{currentUserFarcasterProfile.username}</span>
+                                        </div>
+                                        <div className="text-xs text-gray-400">
+                                            {account?.slice(0, 6)}...{account?.slice(-4)}
+                                        </div>
+                                    </>
+                                ) : (
+                                    <span>Connected: {account?.slice(0, 6)}...{account?.slice(-4)}</span>
+                                )}
                             </div>
                         ) : (
                             <Button onClick={handleConnect} className="btn-primary">
