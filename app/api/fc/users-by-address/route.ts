@@ -1,7 +1,16 @@
 import { NextRequest } from "next/server";
 
 export async function POST(req: NextRequest) {
-  console.log('🚀 Server API route hit!');
+  console.log('🚀🚀🚀 SERVER API ROUTE HIT! 🚀🚀🚀');
+  console.log('🚀🚀🚀 SERVER API ROUTE HIT! 🚀🚀🚀');
+  console.log('🚀🚀🚀 SERVER API ROUTE HIT! 🚀🚀🚀');
+  console.log('🚀🚀🚀 SERVER API ROUTE HIT! 🚀🚀🚀');
+  console.log('🚀🚀🚀 SERVER API ROUTE HIT! 🚀🚀🚀');
+  console.log('🚀🚀🚀 SERVER API ROUTE HIT! 🚀🚀🚀');
+  console.log('🚀🚀🚀 SERVER API ROUTE HIT! 🚀🚀🚀');
+  console.log('🚀🚀🚀 SERVER API ROUTE HIT! 🚀🚀🚀');
+  console.log('🚀🚀🚀 SERVER API ROUTE HIT! 🚀🚀🚀');
+  console.log('🚀🚀🚀 SERVER API ROUTE HIT! 🚀🚀🚀');
   try {
     const { addresses } = await req.json() as { addresses: string[] };
     console.log('🔍 Server API called with addresses:', addresses);
@@ -13,43 +22,65 @@ export async function POST(req: NextRequest) {
     // Only proceed if we have addresses and Neynar API key
     if (addrs.length === 0) {
       console.log('❌ No addresses provided');
-      return Response.json({ result: [] }, { 
-        headers: { "Cache-Control": "public, max-age=60" } 
+      return Response.json({ result: [] }, {
+        headers: { "Cache-Control": "public, max-age=60" }
       });
     }
 
     if (!process.env.NEXT_PUBLIC_NEYNAR_API_KEY) {
       console.log('❌ No Neynar API key found');
-      return Response.json({ result: [] }, { 
-        headers: { "Cache-Control": "public, max-age=60" } 
+      return Response.json({ result: [] }, {
+        headers: { "Cache-Control": "public, max-age=60" }
       });
     }
 
-    // Import Neynar client only on server side
-    const { NeynarAPIClient } = await import("@neynar/nodejs-sdk");
-    const client = new NeynarAPIClient({
-      apiKey: process.env.NEXT_PUBLIC_NEYNAR_API_KEY,
-    });
-
     console.log('🔍 Calling Neynar API with addresses:', addrs);
     
-    // Bulk resolves custody and verified ETH/SOL addresses
-    const { users } = await client.fetchBulkUsersByEthOrSolAddress({
-      addresses: addrs,
-    });
+    try {
+      // Use regular Neynar API (not Snapchain)
+      const response = await fetch(`https://api.neynar.com/v2/farcaster/user/bulk-by-address?addresses=${addrs.join(',')}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'api_key': process.env.NEXT_PUBLIC_NEYNAR_API_KEY!,
+        },
+      });
 
-    console.log('🔍 Neynar API response:', { usersCount: users?.length || 0, users: users?.slice(0, 2) || [] });
+      console.log('🔍 Neynar API response status:', response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Neynar API error:', response.status, errorText);
+        throw new Error(`Neynar API error: ${response.status} ${errorText}`);
+      }
+
+      const neynarResponse = await response.json();
+      console.log('🔍 Neynar API response:', JSON.stringify(neynarResponse, null, 2));
+      
+      // Convert the response format to match our expected structure
+      const users: any[] = [];
+      for (const [address, userArray] of Object.entries(neynarResponse)) {
+        if (Array.isArray(userArray)) {
+          users.push(...userArray);
+        }
+      }
+      
+      console.log('🔍 Neynar API response:', { usersCount: users?.length || 0, users: users?.slice(0, 2) || [] });
+    } catch (error) {
+      console.error('❌ Neynar API error:', error);
+      throw error;
+    }
 
     // Build fast lookup by any matched address
     const byAddr = new Map<string, { fid: number; username: string | null; pfp: string | null }[]>();
 
     for (const u of users ?? []) {
-      const entry = { 
-        fid: u.fid, 
-        username: u.username ?? null, 
-        pfp: u.pfp_url ?? null 
+      const entry = {
+        fid: u.fid,
+        username: u.username ?? null,
+        pfp: u.pfp_url ?? null
       };
-      
+
       // Check both custody address and verified addresses
       const custody = u.custody_address?.toLowerCase();
       const verified = (u.verified_addresses?.eth_addresses ?? []).map((x: string) => x.toLowerCase());
@@ -62,21 +93,21 @@ export async function POST(req: NextRequest) {
     }
 
     // Return list for each requested address (could be 0, 1, or many users)
-    const result = addrs.map(a => ({ 
-      address: a, 
-      users: byAddr.get(a) ?? [] 
+    const result = addrs.map(a => ({
+      address: a,
+      users: byAddr.get(a) ?? []
     }));
 
     console.log('🔍 Final result:', result);
 
-    return Response.json({ result }, { 
-      headers: { "Cache-Control": "public, max-age=60" } 
+    return Response.json({ result }, {
+      headers: { "Cache-Control": "public, max-age=60" }
     });
 
   } catch (error) {
     console.error('Error in /api/fc/users-by-address:', error);
-    return Response.json({ result: [] }, { 
-      headers: { "Cache-Control": "public, max-age=60" } 
+    return Response.json({ result: [] }, {
+      headers: { "Cache-Control": "public, max-age=60" }
     });
   }
 }
