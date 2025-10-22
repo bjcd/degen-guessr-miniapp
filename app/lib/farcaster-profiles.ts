@@ -79,8 +79,8 @@ export async function fetchFarcasterProfile(walletAddress: string): Promise<Farc
     try {
         console.log('🔍 Fetching Farcaster profile via Neynar for wallet:', walletAddress);
 
-        const { users } = await neynarClient.fetchBulkUsersByAddresses({
-            eth_addresses: [walletAddress],
+        const { users } = await neynarClient.fetchBulkUsersByEthOrSolAddress({
+            addresses: [walletAddress],
         });
 
         if (!users || users.length === 0) {
@@ -142,8 +142,8 @@ export async function fetchFarcasterProfiles(walletAddresses: string[]): Promise
     try {
         console.log('🔍 Batch fetching Farcaster profiles via Neynar for:', uncachedAddresses);
         
-        const { users } = await neynarClient.fetchBulkUsersByAddresses({
-            eth_addresses: uncachedAddresses,
+        const { users } = await neynarClient.fetchBulkUsersByEthOrSolAddress({
+            addresses: uncachedAddresses,
         });
         
         // Create a map of address to user for quick lookup
