@@ -1,4 +1,5 @@
 // Farcaster profile utilities for fetching user data by wallet address
+import { NeynarAPIClient } from "@neynar/nodejs-sdk";
 
 export interface FarcasterProfile {
     fid: number;
@@ -20,6 +21,9 @@ const profileCache = new Map<string, CachedProfile>();
 
 // Current user profile from SDK context (if available)
 let currentUserProfile: FarcasterProfile | null = null;
+
+// Initialize Neynar client
+const neynarClient = new NeynarAPIClient(process.env.NEXT_PUBLIC_NEYNAR_API_KEY!);
 
 /**
  * Set the current user's profile from SDK context
@@ -49,7 +53,7 @@ export function getCurrentUserProfile(): FarcasterProfile | null {
 
 /**
  * Fetch Farcaster profile data for a wallet address
- * Uses SDK context for current user (instant), API calls for other users
+ * Uses SDK context for current user (instant), Neynar API for other users
  * Returns null if no Farcaster profile found (shows as wallet address)
  */
 export async function fetchFarcasterProfile(walletAddress: string): Promise<FarcasterProfile | null> {
@@ -69,103 +73,120 @@ export async function fetchFarcasterProfile(walletAddress: string): Promise<Farc
         return cached.profile;
     }
 
-    // Try to fetch profile for other users via API
+    // Try to fetch profile for other users via Neynar API
     try {
-        console.log('🔍 Fetching Farcaster profile for wallet:', walletAddress);
+        console.log('🔍 Fetching Farcaster profile via Neynar for wallet:', walletAddress);
 
-        // Use Farcaster's API to resolve wallet address to FID
-        const response = await fetch(`https://api.warpcast.com/v2/verifications?address=${walletAddress}`, {
-            headers: {
-                'Accept': 'application/json',
-            },
+        const { users } = await neynarClient.fetchBulkUsersByAddresses({
+            eth_addresses: [walletAddress],
         });
 
-        if (!response.ok) {
-            console.log('❌ No Farcaster profile found for wallet:', walletAddress, 'Status:', response.status);
+        if (!users || users.length === 0) {
+            console.log('❌ No Farcaster profile found for wallet:', walletAddress);
             profileCache.set(walletAddress, { profile: null, timestamp: Date.now() });
             return null;
         }
 
-        const data = await response.json();
-
-        if (!data.result || !data.result.verifications || data.result.verifications.length === 0) {
-            console.log('❌ No verifications found for wallet:', walletAddress);
-            profileCache.set(walletAddress, { profile: null, timestamp: Date.now() });
-            return null;
-        }
-
-        // Get the first verification (most recent)
-        const verification = data.result.verifications[0];
-        const fid = verification.fid;
-
-        // Now fetch the profile data for this FID
-        const profileResponse = await fetch(`https://api.warpcast.com/v2/user?fid=${fid}`, {
-            headers: {
-                'Accept': 'application/json',
-            },
-        });
-
-        if (!profileResponse.ok) {
-            console.log('❌ Failed to fetch profile for FID:', fid, 'Status:', profileResponse.status);
-            profileCache.set(walletAddress, { profile: null, timestamp: Date.now() });
-            return null;
-        }
-
-        const profileData = await profileResponse.json();
-
-        if (!profileData.result || !profileData.result.user) {
-            console.log('❌ No user data found for FID:', fid);
-            profileCache.set(walletAddress, { profile: null, timestamp: Date.now() });
-            return null;
-        }
-
-        const user = profileData.result.user;
+        const user = users[0];
         const profile: FarcasterProfile = {
             fid: user.fid,
             username: user.username || 'unknown',
-            displayName: user.displayName || user.username || 'Unknown User',
-            pfpUrl: user.pfpUrl || 'https://via.placeholder.com/150',
+            displayName: user.display_name || user.username || 'Unknown User',
+            pfpUrl: user.pfp_url || 'https://via.placeholder.com/150',
             walletAddress: walletAddress,
         };
 
-        console.log('✅ Successfully fetched Farcaster profile:', profile);
+        console.log('✅ Successfully fetched Farcaster profile via Neynar:', profile);
         profileCache.set(walletAddress, { profile, timestamp: Date.now() });
         return profile;
 
     } catch (error) {
-        console.error('Error fetching Farcaster profile for', walletAddress, ':', error);
+        console.error('Error fetching Farcaster profile via Neynar for', walletAddress, ':', error);
         profileCache.set(walletAddress, { profile: null, timestamp: Date.now() });
         return null;
     }
 }
 
 /**
- * Batch fetch multiple Farcaster profiles
+ * Batch fetch multiple Farcaster profiles using Neynar
  */
 export async function fetchFarcasterProfiles(walletAddresses: string[]): Promise<Map<string, FarcasterProfile | null>> {
-    const profiles = new Map<string, FarcasterProfile | null>();
-
-    // Process in batches to avoid rate limiting
-    const batchSize = 5;
-    for (let i = 0; i < walletAddresses.length; i += batchSize) {
-        const batch = walletAddresses.slice(i, i + batchSize);
-        const batchPromises = batch.map(async (address) => {
-            const profile = await fetchFarcasterProfile(address);
-            return { address, profile };
-        });
-
-        const batchResults = await Promise.all(batchPromises);
-        batchResults.forEach(({ address, profile }) => {
-            profiles.set(address, profile);
-        });
-
-        // Small delay between batches to be respectful to the API
-        if (i + batchSize < walletAddresses.length) {
-            await new Promise(resolve => setTimeout(resolve, 100));
+    const results = new Map<string, FarcasterProfile | null>();
+    
+    // Filter out addresses we already have cached
+    const uncachedAddresses: string[] = [];
+    const cachedResults = new Map<string, FarcasterProfile | null>();
+    
+    walletAddresses.forEach(address => {
+        const cached = profileCache.get(address) as CachedProfile | undefined;
+        if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+            cachedResults.set(address, cached.profile);
+        } else {
+            uncachedAddresses.push(address);
         }
+    });
+    
+    // Add cached results
+    cachedResults.forEach((profile, address) => {
+        results.set(address, profile);
+    });
+    
+    // If no uncached addresses, return cached results
+    if (uncachedAddresses.length === 0) {
+        return results;
     }
-
-    return profiles;
+    
+    // Batch fetch uncached addresses via Neynar
+    try {
+        console.log('🔍 Batch fetching Farcaster profiles via Neynar for:', uncachedAddresses);
+        
+        const { users } = await neynarClient.fetchBulkUsersByAddresses({
+            eth_addresses: uncachedAddresses,
+        });
+        
+        // Create a map of address to user for quick lookup
+        const addressToUser = new Map<string, any>();
+        users.forEach(user => {
+            // Neynar returns users with their verified addresses
+            if (user.verified_addresses && user.verified_addresses.eth_addresses) {
+                user.verified_addresses.eth_addresses.forEach((addr: string) => {
+                    addressToUser.set(addr.toLowerCase(), user);
+                });
+            }
+        });
+        
+        // Process each address
+        uncachedAddresses.forEach(address => {
+            const user = addressToUser.get(address.toLowerCase());
+            if (user) {
+                const profile: FarcasterProfile = {
+                    fid: user.fid,
+                    username: user.username || 'unknown',
+                    displayName: user.display_name || user.username || 'Unknown User',
+                    pfpUrl: user.pfp_url || 'https://via.placeholder.com/150',
+                    walletAddress: address,
+                };
+                
+                results.set(address, profile);
+                profileCache.set(address, { profile, timestamp: Date.now() });
+                console.log('✅ Batch fetched profile for:', address, profile.username);
+            } else {
+                results.set(address, null);
+                profileCache.set(address, { profile: null, timestamp: Date.now() });
+                console.log('❌ No profile found for:', address);
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error batch fetching Farcaster profiles via Neynar:', error);
+        // Fallback: set all uncached addresses to null
+        uncachedAddresses.forEach(address => {
+            results.set(address, null);
+            profileCache.set(address, { profile: null, timestamp: Date.now() });
+        });
+    }
+    
+    return results;
 }
 
 /**
