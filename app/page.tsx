@@ -252,7 +252,10 @@ export default function Home() {
 
                 // Set current user profile for Farcaster context
                 if (isFarcasterEnvironment && user) {
+                    console.log('🔧 Setting current user profile from SDK context:', { user, account });
                     setCurrentUserProfile(user, account);
+                } else {
+                    console.log('⚠️ Not setting current user profile:', { isFarcasterEnvironment, user: !!user, account });
                 }
 
                 console.log('✅ User data loaded - Balance:', balance, 'Guesses:', guesses, 'Wins:', wins, 'Allowance:', allowanceAmount);
