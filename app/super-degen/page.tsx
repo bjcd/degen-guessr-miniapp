@@ -533,7 +533,7 @@ export default function SuperDegenHome() {
                                     <>
                                         <div className="flex items-center gap-2">
                                             <img 
-                                                src={currentUserFarcasterProfile.pfp || '/default-avatar.png'} 
+                                                src={currentUserFarcasterProfile.pfpUrl || '/default-avatar.png'} 
                                                 alt="Profile" 
                                                 className="w-6 h-6 rounded-full"
                                                 onError={(e) => {
