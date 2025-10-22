@@ -23,7 +23,9 @@ const profileCache = new Map<string, CachedProfile>();
 let currentUserProfile: FarcasterProfile | null = null;
 
 // Initialize Neynar client
-const neynarClient = new NeynarAPIClient(process.env.NEXT_PUBLIC_NEYNAR_API_KEY!);
+const neynarClient = new NeynarAPIClient({
+    apiKey: process.env.NEXT_PUBLIC_NEYNAR_API_KEY!,
+});
 
 /**
  * Set the current user's profile from SDK context
