@@ -62,6 +62,25 @@ export async function fetchFarcasterProfile(walletAddress: string): Promise<Farc
         return cached.profile;
     }
 
+    // For now, skip external API calls due to reliability issues
+    // In the future, we could implement a more robust solution or use a different API
+    console.log('⚠️ Skipping external API call for wallet:', walletAddress, '- using fallback');
+    
+    // Create a fallback profile with wallet address initials
+    const fallbackProfile: FarcasterProfile = {
+        fid: 0, // Unknown FID
+        username: 'unknown',
+        displayName: `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`,
+        pfpUrl: 'https://via.placeholder.com/150',
+        walletAddress: walletAddress,
+    };
+
+    // Cache the fallback profile
+    profileCache.set(walletAddress, { profile: fallbackProfile, timestamp: Date.now() });
+    return fallbackProfile;
+
+    // TODO: Re-enable external API calls when they become more reliable
+    /*
     try {
         console.log('🔍 Fetching Farcaster profile for wallet:', walletAddress);
 
@@ -129,6 +148,7 @@ export async function fetchFarcasterProfile(walletAddress: string): Promise<Farc
         profileCache.set(walletAddress, { profile: null, timestamp: Date.now() });
         return null;
     }
+    */
 }
 
 /**

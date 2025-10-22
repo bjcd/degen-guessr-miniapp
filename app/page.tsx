@@ -759,9 +759,11 @@ export default function Home() {
                                                                 <span className="text-sm font-bold text-foreground">
                                                                     {winner.farcasterProfile.displayName}
                                                                 </span>
-                                                                <span className="text-xs text-muted-foreground">
-                                                                    @{winner.farcasterProfile.username}
-                                                                </span>
+                                                                {winner.farcasterProfile.fid > 0 && (
+                                                                    <span className="text-xs text-muted-foreground">
+                                                                        @{winner.farcasterProfile.username}
+                                                                    </span>
+                                                                )}
                                                             </div>
                                                         </>
                                                     ) : (
