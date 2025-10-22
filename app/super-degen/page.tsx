@@ -528,24 +528,19 @@ export default function SuperDegenHome() {
                         {isDemoMode ? (
                             <div className="text-yellow-400 text-sm font-bold">DEMO MODE</div>
                         ) : isConnected ? (
-                            <div className="text-green-400 text-sm font-bold flex items-center gap-2">
+                            <div className="text-white text-sm font-bold flex items-center gap-2">
                                 {isFarcasterEnvironment && currentUserFarcasterProfile ? (
-                                    <>
-                                        <div className="flex items-center gap-2">
-                                            <img 
-                                                src={currentUserFarcasterProfile.pfpUrl || '/default-avatar.png'} 
-                                                alt="Profile" 
-                                                className="w-6 h-6 rounded-full"
-                                                onError={(e) => {
-                                                    e.currentTarget.src = '/default-avatar.png';
-                                                }}
-                                            />
-                                            <span>@{currentUserFarcasterProfile.username}</span>
-                                        </div>
-                                        <div className="text-xs text-gray-400">
-                                            {account?.slice(0, 6)}...{account?.slice(-4)}
-                                        </div>
-                                    </>
+                                    <div className="flex items-center gap-2">
+                                        <img 
+                                            src={currentUserFarcasterProfile.pfpUrl || '/default-avatar.png'} 
+                                            alt="Profile" 
+                                            className="w-6 h-6 rounded-full"
+                                            onError={(e) => {
+                                                e.currentTarget.src = '/default-avatar.png';
+                                            }}
+                                        />
+                                        <span>@{currentUserFarcasterProfile.username}</span>
+                                    </div>
                                 ) : (
                                     <span>Connected: {account?.slice(0, 6)}...{account?.slice(-4)}</span>
                                 )}
