@@ -3,12 +3,22 @@ import { NextRequest } from "next/server";
 export async function POST(req: NextRequest) {
   try {
     const { addresses } = await req.json() as { addresses: string[] };
+    console.log('🔍 Server API called with addresses:', addresses);
 
     // Normalize to lowercase 0x… strings and remove duplicates
     const addrs = [...new Set(addresses.map(a => a.toLowerCase()))];
+    console.log('🔍 Normalized addresses:', addrs);
 
     // Only proceed if we have addresses and Neynar API key
-    if (addrs.length === 0 || !process.env.NEXT_PUBLIC_NEYNAR_API_KEY) {
+    if (addrs.length === 0) {
+      console.log('❌ No addresses provided');
+      return Response.json({ result: [] }, { 
+        headers: { "Cache-Control": "public, max-age=60" } 
+      });
+    }
+
+    if (!process.env.NEXT_PUBLIC_NEYNAR_API_KEY) {
+      console.log('❌ No Neynar API key found');
       return Response.json({ result: [] }, { 
         headers: { "Cache-Control": "public, max-age=60" } 
       });
@@ -20,10 +30,14 @@ export async function POST(req: NextRequest) {
       apiKey: process.env.NEXT_PUBLIC_NEYNAR_API_KEY,
     });
 
+    console.log('🔍 Calling Neynar API with addresses:', addrs);
+    
     // Bulk resolves custody and verified ETH/SOL addresses
     const { users } = await client.fetchBulkUsersByEthOrSolAddress({
       addresses: addrs,
     });
+
+    console.log('🔍 Neynar API response:', { usersCount: users?.length || 0, users: users?.slice(0, 2) || [] });
 
     // Build fast lookup by any matched address
     const byAddr = new Map<string, { fid: number; username: string | null; pfp: string | null }[]>();
@@ -51,6 +65,8 @@ export async function POST(req: NextRequest) {
       address: a, 
       users: byAddr.get(a) ?? [] 
     }));
+
+    console.log('🔍 Final result:', result);
 
     return Response.json({ result }, { 
       headers: { "Cache-Control": "public, max-age=60" } 

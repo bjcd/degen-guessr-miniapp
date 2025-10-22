@@ -88,7 +88,10 @@ export async function fetchFarcasterProfile(walletAddress: string): Promise<Farc
         }
 
         const { result } = await response.json();
+        console.log('🔍 Server API response for', walletAddress, ':', result);
+        
         const addressData = result.find((r: any) => r.address.toLowerCase() === walletAddress.toLowerCase());
+        console.log('🔍 Address data for', walletAddress, ':', addressData);
 
         if (!addressData || !addressData.users || addressData.users.length === 0) {
             console.log('❌ No Farcaster profile found for wallet:', walletAddress);
