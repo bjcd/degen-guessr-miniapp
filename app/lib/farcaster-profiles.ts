@@ -1,5 +1,4 @@
 // Farcaster profile utilities for fetching user data by wallet address
-import { NeynarAPIClient } from "@neynar/nodejs-sdk";
 
 export interface FarcasterProfile {
     fid: number;
@@ -22,10 +21,29 @@ const profileCache = new Map<string, CachedProfile>();
 // Current user profile from SDK context (if available)
 let currentUserProfile: FarcasterProfile | null = null;
 
-// Initialize Neynar client
-const neynarClient = new NeynarAPIClient({
-    apiKey: process.env.NEXT_PUBLIC_NEYNAR_API_KEY!,
-});
+// Lazy initialization of Neynar client (only when needed and on server side)
+let neynarClient: any = null;
+
+function getNeynarClient() {
+    if (typeof window !== 'undefined') {
+        // Running in browser - return null to skip Neynar API calls
+        return null;
+    }
+    
+    if (!neynarClient) {
+        try {
+            const { NeynarAPIClient } = require("@neynar/nodejs-sdk");
+            neynarClient = new NeynarAPIClient({
+                apiKey: process.env.NEXT_PUBLIC_NEYNAR_API_KEY!,
+            });
+        } catch (error) {
+            console.warn('Neynar SDK not available:', error);
+            return null;
+        }
+    }
+    
+    return neynarClient;
+}
 
 /**
  * Set the current user's profile from SDK context
@@ -75,11 +93,18 @@ export async function fetchFarcasterProfile(walletAddress: string): Promise<Farc
         return cached.profile;
     }
 
-    // Try to fetch profile for other users via Neynar API
+    // Try to fetch profile for other users via Neynar API (server-side only)
+    const client = getNeynarClient();
+    if (!client) {
+        console.log('ℹ️ Neynar client not available (browser environment), skipping API call for:', walletAddress);
+        profileCache.set(walletAddress, { profile: null, timestamp: Date.now() });
+        return null;
+    }
+
     try {
         console.log('🔍 Fetching Farcaster profile via Neynar for wallet:', walletAddress);
 
-        const { users } = await neynarClient.fetchBulkUsersByEthOrSolAddress({
+        const { users } = await client.fetchBulkUsersByEthOrSolAddress({
             addresses: [walletAddress],
         });
 
@@ -138,11 +163,22 @@ export async function fetchFarcasterProfiles(walletAddresses: string[]): Promise
         return results;
     }
     
-    // Batch fetch uncached addresses via Neynar
+    // Batch fetch uncached addresses via Neynar (server-side only)
+    const client = getNeynarClient();
+    if (!client) {
+        console.log('ℹ️ Neynar client not available (browser environment), skipping batch API call');
+        // Fallback: set all uncached addresses to null
+        uncachedAddresses.forEach(address => {
+            results.set(address, null);
+            profileCache.set(address, { profile: null, timestamp: Date.now() });
+        });
+        return results;
+    }
+
     try {
         console.log('🔍 Batch fetching Farcaster profiles via Neynar for:', uncachedAddresses);
         
-        const { users } = await neynarClient.fetchBulkUsersByEthOrSolAddress({
+        const { users } = await client.fetchBulkUsersByEthOrSolAddress({
             addresses: uncachedAddresses,
         });
         
