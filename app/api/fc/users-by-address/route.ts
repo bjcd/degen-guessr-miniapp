@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 
 export async function POST(req: NextRequest) {
+  console.log('🚀 Server API route hit!');
   try {
     const { addresses } = await req.json() as { addresses: string[] };
     console.log('🔍 Server API called with addresses:', addresses);
