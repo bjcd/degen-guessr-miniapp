@@ -184,7 +184,7 @@ export async function fetchFarcasterProfiles(walletAddresses: string[]): Promise
         
         // Create a map of address to user for quick lookup
         const addressToUser = new Map<string, any>();
-        users.forEach(user => {
+        users.forEach((user: any) => {
             // Neynar returns users with their verified addresses
             if (user.verified_addresses && user.verified_addresses.eth_addresses) {
                 user.verified_addresses.eth_addresses.forEach((addr: string) => {
