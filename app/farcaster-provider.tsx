@@ -124,90 +124,70 @@ export function FarcasterProvider({ children }: { children: ReactNode }) {
         console.log('isReady:', isReady);
         console.log('typeof window:', typeof window);
 
-        // Strategy 1: In Farcaster environment, use SDK wallet
-        if (isFarcasterEnvironment && typeof window !== 'undefined') {
-            console.log('In Farcaster environment - attempting to use SDK wallet...');
-            console.log('SDK available:', !!sdk);
-            console.log('SDK wallet available:', !!sdk?.wallet);
+        // First, always check for browser wallet as it's more reliable
+        if (typeof window !== 'undefined' && (window as any).ethereum) {
+            console.log('✓ Browser wallet detected (MetaMask, Coinbase, etc.)');
+            
+            // If we're in Farcaster environment, try Farcaster wallet first, but fallback to browser wallet
+            if (isFarcasterEnvironment) {
+                console.log('In Farcaster environment - attempting to use SDK wallet first...');
+                console.log('SDK available:', !!sdk);
+                console.log('SDK wallet available:', !!sdk?.wallet);
 
-            // Double-check we're actually in a MiniApp using the official method
-            try {
-                const actuallyInMiniApp = await sdk.isInMiniApp();
-                console.log('Double-check isInMiniApp:', actuallyInMiniApp);
-                if (!actuallyInMiniApp) {
-                    console.warn('SDK says we are NOT in a MiniApp, but our detection said we were');
-                    setIsFarcasterEnvironment(false);
-                    // Fall through to regular web wallet logic
-                }
-            } catch (error) {
-                console.warn('Error double-checking isInMiniApp:', error);
-            }
-
-            // If SDK isn't ready yet, wait a bit and try again
-            if (!isReady || !sdk?.wallet) {
-                console.log('SDK not ready yet, waiting...');
-                await new Promise(resolve => setTimeout(resolve, 1000));
-
-                if (!sdk?.wallet) {
-                    console.warn('SDK still not ready after waiting');
-                    return null;
-                }
-            }
-
-            try {
-                // Check if wallet capability is available
-                const capabilities = await sdk.getCapabilities();
-                console.log('Available capabilities:', capabilities);
-
-                if (!capabilities.includes('wallet.getEthereumProvider')) {
-                    console.warn('⚠ Wallet capability not available in capabilities list');
-                    console.log('Looking for: wallet.getEthereumProvider');
-                    console.log('Available:', capabilities);
-                    return null;
+                // Double-check we're actually in a MiniApp using the official method
+                try {
+                    const actuallyInMiniApp = await sdk.isInMiniApp();
+                    console.log('Double-check isInMiniApp:', actuallyInMiniApp);
+                    if (!actuallyInMiniApp) {
+                        console.warn('SDK says we are NOT in a MiniApp, using browser wallet');
+                        return (window as any).ethereum;
+                    }
+                } catch (error) {
+                    console.warn('Error double-checking isInMiniApp, using browser wallet:', error);
+                    return (window as any).ethereum;
                 }
 
-                // Access Farcaster's embedded wallet via SDK
-                console.log('Calling sdk.wallet.getEthereumProvider()...');
-                const fcProvider = await sdk.wallet.getEthereumProvider();
-                console.log('getEthereumProvider result:', fcProvider);
-
-                if (fcProvider) {
-                    console.log('✓ Successfully got Farcaster embedded wallet');
-                    console.log('Provider type:', typeof fcProvider);
-                    console.log('Provider has request method:', typeof fcProvider.request);
-                    return fcProvider;
-                } else {
-                    console.warn('⚠ Farcaster wallet provider returned null');
+                // If SDK isn't ready yet, use browser wallet
+                if (!isReady || !sdk?.wallet) {
+                    console.log('SDK not ready yet, using browser wallet');
+                    return (window as any).ethereum;
                 }
-            } catch (fcError) {
-                console.error('✗ Error accessing Farcaster wallet:', fcError);
-                console.error('Error details:', {
-                    name: fcError instanceof Error ? fcError.name : 'Unknown',
-                    message: fcError instanceof Error ? fcError.message : String(fcError),
-                    stack: fcError instanceof Error ? fcError.stack : undefined
-                });
-                // This is expected if wallet capability isn't granted
-            }
 
-            // Fallback: Try injected wallet (for desktop Farcaster with extensions)
-            if ((window as any).ethereum) {
-                console.log('↪ Falling back to injected wallet in Farcaster environment');
-                return (window as any).ethereum;
-            }
+                try {
+                    // Check if wallet capability is available
+                    const capabilities = await sdk.getCapabilities();
+                    console.log('Available capabilities:', capabilities);
 
-            // No wallet available in Farcaster
-            throw new Error('No wallet available. Please grant wallet access in Farcaster settings.');
-        }
+                    if (!capabilities.includes('wallet.getEthereumProvider')) {
+                        console.warn('⚠ Wallet capability not available, using browser wallet');
+                        return (window as any).ethereum;
+                    }
 
-        // Strategy 2: In regular browser, use injected wallet
-        else {
-            if (typeof window !== 'undefined' && (window as any).ethereum) {
+                    // Access Farcaster's embedded wallet via SDK
+                    console.log('Calling sdk.wallet.getEthereumProvider()...');
+                    const fcProvider = await sdk.wallet.getEthereumProvider();
+                    console.log('getEthereumProvider result:', fcProvider);
+
+                    if (fcProvider) {
+                        console.log('✓ Successfully got Farcaster embedded wallet');
+                        return fcProvider;
+                    } else {
+                        console.warn('⚠ Farcaster wallet provider returned null, using browser wallet');
+                        return (window as any).ethereum;
+                    }
+                } catch (fcError) {
+                    console.error('✗ Error accessing Farcaster wallet, using browser wallet:', fcError);
+                    return (window as any).ethereum;
+                }
+            } else {
+                // Regular browser environment, use injected wallet
                 console.log('✓ Using browser injected wallet (MetaMask, Coinbase, etc.)');
                 return (window as any).ethereum;
             }
-
-            throw new Error('No wallet found. Please install MetaMask or another Web3 wallet.');
         }
+
+        // No wallet found at all
+        throw new Error('No wallet found. Please install MetaMask or another Web3 wallet.');
     };
 
     return (
