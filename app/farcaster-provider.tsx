@@ -126,6 +126,7 @@ export function FarcasterProvider({ children }: { children: ReactNode }) {
 
         // Strategy 1: In Farcaster environment, use SDK wallet
         if (isFarcasterEnvironment && typeof window !== 'undefined') {
+            console.log('🔍 Farcaster environment detected, attempting SDK wallet...');
             console.log('In Farcaster environment - attempting to use SDK wallet...');
             console.log('SDK available:', !!sdk);
             console.log('SDK wallet available:', !!sdk?.wallet);
@@ -201,11 +202,13 @@ export function FarcasterProvider({ children }: { children: ReactNode }) {
 
         // Strategy 2: In regular browser, use injected wallet
         else {
+            console.log('Not in Farcaster environment, checking for browser wallet...');
             if (typeof window !== 'undefined' && (window as any).ethereum) {
                 console.log('✓ Using browser injected wallet (MetaMask, Coinbase, etc.)');
                 return (window as any).ethereum;
             }
 
+            console.error('❌ No browser wallet found');
             throw new Error('No wallet found. Please install MetaMask or another Web3 wallet.');
         }
     };
