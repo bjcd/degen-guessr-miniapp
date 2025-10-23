@@ -56,6 +56,7 @@ export default function SuperDegenHome() {
     const [isLoadingPot, setIsLoadingPot] = useState(false);
     const [isLoadingData, setIsLoadingData] = useState(false);
     const [currentUserFarcasterProfile, setCurrentUserFarcasterProfile] = useState<FarcasterProfile | null>(null);
+    const [showAllWinners, setShowAllWinners] = useState(false);
 
     // Simple ref to track the current contract/account combo to avoid duplicate loads
     const currentContextRef = useRef<string>('');
@@ -531,9 +532,9 @@ export default function SuperDegenHome() {
                             <div className="text-white text-sm font-bold flex items-center gap-2">
                                 {isFarcasterEnvironment && currentUserFarcasterProfile ? (
                                     <div className="flex items-center gap-2">
-                                        <img 
-                                            src={currentUserFarcasterProfile.pfpUrl || '/default-avatar.png'} 
-                                            alt="Profile" 
+                                        <img
+                                            src={currentUserFarcasterProfile.pfpUrl || '/default-avatar.png'}
+                                            alt="Profile"
                                             className="w-6 h-6 rounded-full"
                                             onError={(e) => {
                                                 e.currentTarget.src = '/default-avatar.png';
@@ -746,76 +747,88 @@ export default function SuperDegenHome() {
                                         <p className="text-xs text-muted-foreground/70 mt-1">Be the first to guess correctly</p>
                                     </div>
                                 ) : (
-                                    winners.map((winner, index) => (
-                                        <div
-                                            key={winner.id}
-                                            className="p-4 bg-gradient-to-r from-primary/10 to-secondary/10 rounded-lg border border-primary/30 hover:border-primary/50 transition-colors"
-                                        >
-                                            <div className="flex items-center justify-between mb-2">
-                                                <div className="flex items-center gap-2">
-                                                    {winner.farcasterProfile ? (
-                                                        <>
-                                                            <div className="relative">
-                                                                <Image
-                                                                    src={winner.farcasterProfile.pfpUrl}
-                                                                    alt={winner.farcasterProfile.displayName}
-                                                                    width={24}
-                                                                    height={24}
-                                                                    className="w-6 h-6 rounded-full border border-primary/20"
-                                                                    onError={(e) => {
-                                                                        console.log('Failed to load profile image for:', winner.farcasterProfile?.displayName);
-                                                                        // Fallback to a default avatar
-                                                                        (e.target as HTMLImageElement).src = 'https://via.placeholder.com/24x24/6366f1/ffffff?text=' + (winner.farcasterProfile?.displayName?.charAt(0) || '?');
-                                                                    }}
-                                                                />
-                                                            </div>
-                                                            <div className="flex flex-col">
-                                                                <span className="text-sm font-bold text-foreground">
-                                                                    {winner.farcasterProfile.displayName}
-                                                                </span>
-                                                                {winner.farcasterProfile.fid > 0 && (
-                                                                    <span className="text-xs text-muted-foreground">
-                                                                        @{winner.farcasterProfile.username}
+                                    <>
+                                        {(showAllWinners ? winners : winners.slice(0, 5)).map((winner, index) => (
+                                            <div
+                                                key={winner.id}
+                                                className="p-4 bg-gradient-to-r from-primary/10 to-secondary/10 rounded-lg border border-primary/30 hover:border-primary/50 transition-colors"
+                                            >
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <div className="flex items-center gap-2">
+                                                        {winner.farcasterProfile ? (
+                                                            <>
+                                                                <div className="relative">
+                                                                    <Image
+                                                                        src={winner.farcasterProfile.pfpUrl}
+                                                                        alt={winner.farcasterProfile.displayName}
+                                                                        width={24}
+                                                                        height={24}
+                                                                        className="w-6 h-6 rounded-full border border-primary/20"
+                                                                        onError={(e) => {
+                                                                            console.log('Failed to load profile image for:', winner.farcasterProfile?.displayName);
+                                                                            // Fallback to a default avatar
+                                                                            (e.target as HTMLImageElement).src = 'https://via.placeholder.com/24x24/6366f1/ffffff?text=' + (winner.farcasterProfile?.displayName?.charAt(0) || '?');
+                                                                        }}
+                                                                    />
+                                                                </div>
+                                                                <div className="flex flex-col">
+                                                                    <span className="text-sm font-bold text-foreground">
+                                                                        {winner.farcasterProfile.displayName}
                                                                     </span>
-                                                                )}
-                                                            </div>
-                                                        </>
-                                                    ) : (
-                                                        <div className="flex items-center gap-2">
-                                                            <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center">
-                                                                <span className="text-xs font-bold text-muted-foreground">
-                                                                    {winner.address.slice(2, 4).toUpperCase()}
+                                                                    {winner.farcasterProfile.fid > 0 && (
+                                                                        <span className="text-xs text-muted-foreground">
+                                                                            @{winner.farcasterProfile.username}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            </>
+                                                        ) : (
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center">
+                                                                    <span className="text-xs font-bold text-muted-foreground">
+                                                                        {winner.address.slice(2, 4).toUpperCase()}
+                                                                    </span>
+                                                                </div>
+                                                                <span className="text-sm font-bold text-foreground font-mono">
+                                                                    {winner.address.slice(0, 6)}...{winner.address.slice(-4)}
                                                                 </span>
                                                             </div>
-                                                            <span className="text-sm font-bold text-foreground font-mono">
-                                                                {winner.address.slice(0, 6)}...{winner.address.slice(-4)}
-                                                            </span>
-                                                        </div>
-                                                    )}
+                                                        )}
+                                                    </div>
+                                                    <Trophy className={`w-4 h-4 ${index === 0 ? 'text-yellow-400 animate-pulse' : 'text-primary'}`} />
                                                 </div>
-                                                <Trophy className={`w-4 h-4 ${index === 0 ? 'text-yellow-400 animate-pulse' : 'text-primary'}`} />
-                                            </div>
-                                            <div className="flex items-center justify-between mb-2">
-                                                {winner.txHash ? (
-                                                    <a
-                                                        href={`https://basescan.org/tx/${winner.txHash}`}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="text-xs text-primary hover:text-primary/80 underline transition-colors"
-                                                    >
-                                                        View TX
-                                                    </a>
-                                                ) : (
-                                                    <span className="text-xs text-muted-foreground">
-                                                        {new Date(winner.timestamp).toLocaleTimeString()}
+                                                <div className="flex items-center justify-between mb-2">
+                                                    {winner.txHash ? (
+                                                        <a
+                                                            href={`https://basescan.org/tx/${winner.txHash}`}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="text-xs text-primary hover:text-primary/80 underline transition-colors"
+                                                        >
+                                                            View TX
+                                                        </a>
+                                                    ) : (
+                                                        <span className="text-xs text-muted-foreground">
+                                                            {new Date(winner.timestamp).toLocaleTimeString()}
+                                                        </span>
+                                                    )}
+                                                    <span className="text-lg font-black text-primary">
+                                                        {winner.amount % 1 === 0 ? winner.amount.toString() : winner.amount.toFixed(2)} $DEGEN
                                                     </span>
-                                                )}
-                                                <span className="text-lg font-black text-primary">
-                                                    {winner.amount % 1 === 0 ? winner.amount.toString() : winner.amount.toFixed(2)} $DEGEN
-                                                </span>
+                                                </div>
                                             </div>
-                                        </div>
-                                    ))
+                                        ))}
+                                        {winners.length > 5 && (
+                                            <div className="flex justify-center mt-4">
+                                                <button
+                                                    onClick={() => setShowAllWinners(!showAllWinners)}
+                                                    className="px-6 py-2 bg-gradient-to-r from-primary to-secondary hover:from-primary/80 hover:to-secondary/80 text-white text-sm font-bold rounded-lg transition-all duration-200 transform hover:scale-105"
+                                                >
+                                                    {showAllWinners ? 'Show Less' : `More Winners (${winners.length - 5} more)`}
+                                                </button>
+                                            </div>
+                                        )}
+                                    </>
                                 )}
                             </div>
                         </Card>
