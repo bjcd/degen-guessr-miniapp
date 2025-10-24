@@ -556,15 +556,15 @@ export default function SuperDegenHome() {
                     {/* Add to Farcaster button - shows in Farcaster environment if not already added */}
                     {isFarcasterEnvironment && !isMiniAppAdded && (
                         <div className="flex justify-center">
-                            <Button 
-                                onClick={addToFarcaster} 
+                            <Button
+                                onClick={addToFarcaster}
                                 className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg transition-colors"
                             >
                                 📱 Add miniapp to Farcaster
                             </Button>
                         </div>
                     )}
-                    
+
                     {/* Show success message if mini app is already added */}
                     {isFarcasterEnvironment && isMiniAppAdded && (
                         <div className="flex justify-center">

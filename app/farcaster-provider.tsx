@@ -64,7 +64,7 @@ export function FarcasterProvider({ children }: { children: ReactNode }) {
             // Set ready immediately after calling sdk.actions.ready()
             console.log('✅ Setting Farcaster provider ready');
             setIsReady(true);
-            
+
             // Check if mini app is already added
             if (isInFarcaster) {
                 checkMiniAppStatus();
@@ -82,19 +82,16 @@ export function FarcasterProvider({ children }: { children: ReactNode }) {
 
             console.log('🔍 Checking if mini app is already added...');
             
-            // Check if the mini app is already in the user's collection
-            // This is a simplified check - in a real implementation, you might need to
-            // use a different SDK method or check against a known list
-            try {
-                // Try to get mini app info - if it exists, it's likely already added
-                const miniAppInfo = await sdk.getMiniAppInfo();
-                console.log('Mini app info:', miniAppInfo);
-                
-                // For now, we'll assume it's not added and let the user try to add it
-                // In a real implementation, you'd check against the user's mini apps list
-                setIsMiniAppAdded(false);
-            } catch (error) {
-                console.log('Mini app not found in user collection:', error);
+            // For now, we'll use localStorage to track if the user has added the mini app
+            // In a real implementation, you might check against Farcaster's API or use
+            // a different SDK method when it becomes available
+            const hasAddedMiniApp = localStorage.getItem('farcaster-miniapp-added');
+            
+            if (hasAddedMiniApp === 'true') {
+                console.log('✅ Mini app already added (from localStorage)');
+                setIsMiniAppAdded(true);
+            } else {
+                console.log('❌ Mini app not added yet');
                 setIsMiniAppAdded(false);
             }
         } catch (error) {
@@ -158,7 +155,7 @@ export function FarcasterProvider({ children }: { children: ReactNode }) {
     const addToFarcaster = async () => {
         try {
             console.log('🚀 Triggering native Farcaster mini app installation...');
-            
+
             if (!isFarcasterEnvironment) {
                 console.log('Not in Farcaster environment, cannot add mini app');
                 return;
@@ -171,6 +168,8 @@ export function FarcasterProvider({ children }: { children: ReactNode }) {
                 console.log('✅ Add to Farcaster prompt triggered successfully');
                 // Assume it was added successfully (user would have confirmed)
                 setIsMiniAppAdded(true);
+                // Save to localStorage to persist across sessions
+                localStorage.setItem('farcaster-miniapp-added', 'true');
             } catch (error) {
                 console.error('❌ Failed to trigger addMiniApp:', error);
                 alert('Failed to add mini app to Farcaster. Please try again.');
