@@ -17,6 +17,7 @@ interface FarcasterContextType {
     signOut: () => Promise<void>;
     getEthereumProvider: () => Promise<any>;
     isFarcasterEnvironment: boolean;
+    addToFarcaster: () => Promise<void>;
 }
 
 const FarcasterContext = createContext<FarcasterContextType | undefined>(undefined);
@@ -115,6 +116,30 @@ export function FarcasterProvider({ children }: { children: ReactNode }) {
             setUser(null);
         } catch (error) {
             console.error('Sign out failed:', error);
+        }
+    };
+
+    const addToFarcaster = async () => {
+        try {
+            console.log('🚀 Triggering native Farcaster mini app installation...');
+            
+            if (!isFarcasterEnvironment) {
+                console.log('Not in Farcaster environment, cannot add mini app');
+                return;
+            }
+
+            // We're in Farcaster environment, trigger the native addMiniApp
+            console.log('In Farcaster environment, triggering addMiniApp...');
+            try {
+                await sdk.actions.addMiniApp();
+                console.log('✅ Add to Farcaster prompt triggered successfully');
+            } catch (error) {
+                console.error('❌ Failed to trigger addMiniApp:', error);
+                alert('Failed to add mini app to Farcaster. Please try again.');
+            }
+        } catch (error) {
+            console.error('Error adding to Farcaster:', error);
+            alert('Failed to add to Farcaster. Please try again.');
         }
     };
 
@@ -222,6 +247,7 @@ export function FarcasterProvider({ children }: { children: ReactNode }) {
                 signOut,
                 getEthereumProvider,
                 isFarcasterEnvironment,
+                addToFarcaster,
             }}
         >
             {children}

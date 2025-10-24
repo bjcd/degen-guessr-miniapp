@@ -39,7 +39,7 @@ console.log('GUESS_GAME_CONTRACT:', GUESS_GAME_CONTRACT);
 console.log('DEGEN_TOKEN:', DEGEN_TOKEN);
 
 export default function Home() {
-    const { isReady, user, signIn, signOut, isFarcasterEnvironment } = useFarcaster();
+    const { isReady, user, signIn, signOut, isFarcasterEnvironment, addToFarcaster } = useFarcaster();
     const { triggerConfetti } = useConfetti();
 
     const [guess, setGuess] = useState("");
@@ -561,9 +561,9 @@ export default function Home() {
                             <div className="text-white text-sm font-bold flex items-center gap-2">
                                 {isFarcasterEnvironment && currentUserFarcasterProfile ? (
                                     <div className="flex items-center gap-2">
-                                        <img
-                                            src={currentUserFarcasterProfile.pfpUrl || '/default-avatar.png'}
-                                            alt="Profile"
+                                        <img 
+                                            src={currentUserFarcasterProfile.pfpUrl || '/default-avatar.png'} 
+                                            alt="Profile" 
                                             className="w-6 h-6 rounded-full"
                                             onError={(e) => {
                                                 e.currentTarget.src = '/default-avatar.png';
@@ -576,9 +576,19 @@ export default function Home() {
                                 )}
                             </div>
                         ) : (
-                            <Button onClick={handleConnect} className="btn-primary">
-                                Connect Wallet
-                            </Button>
+                            <div className="flex flex-col items-center gap-2">
+                                <Button onClick={handleConnect} className="btn-primary">
+                                    Connect Wallet
+                                </Button>
+                                {isFarcasterEnvironment && (
+                                    <Button 
+                                        onClick={addToFarcaster} 
+                                        className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg transition-colors"
+                                    >
+                                        📱 Add to Farcaster
+                                    </Button>
+                                )}
+                            </div>
                         )}
                     </div>
                 </div>
