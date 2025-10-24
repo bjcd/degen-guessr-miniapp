@@ -39,7 +39,7 @@ console.log('GUESS_GAME_CONTRACT:', GUESS_GAME_CONTRACT);
 console.log('DEGEN_TOKEN:', DEGEN_TOKEN);
 
 export default function Home() {
-    const { isReady, user, signIn, signOut, isFarcasterEnvironment, addToFarcaster } = useFarcaster();
+    const { isReady, user, signIn, signOut, isFarcasterEnvironment, addToFarcaster, isMiniAppAdded } = useFarcaster();
     const { triggerConfetti } = useConfetti();
 
     const [guess, setGuess] = useState("");
@@ -561,9 +561,9 @@ export default function Home() {
                             <div className="text-white text-sm font-bold flex items-center gap-2">
                                 {isFarcasterEnvironment && currentUserFarcasterProfile ? (
                                     <div className="flex items-center gap-2">
-                                        <img 
-                                            src={currentUserFarcasterProfile.pfpUrl || '/default-avatar.png'} 
-                                            alt="Profile" 
+                                        <img
+                                            src={currentUserFarcasterProfile.pfpUrl || '/default-avatar.png'}
+                                            alt="Profile"
                                             className="w-6 h-6 rounded-full"
                                             onError={(e) => {
                                                 e.currentTarget.src = '/default-avatar.png';
@@ -581,19 +581,28 @@ export default function Home() {
                             </Button>
                         )}
                     </div>
-                    
-                    {/* Add to Farcaster button - shows in Farcaster environment regardless of connection status */}
-                    {isFarcasterEnvironment && (
+
+                    {/* Add to Farcaster button - shows in Farcaster environment if not already added */}
+                    {isFarcasterEnvironment && !isMiniAppAdded && (
                         <div className="flex justify-center">
-                            <Button 
-                                onClick={addToFarcaster} 
+                            <Button
+                                onClick={addToFarcaster}
                                 className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg transition-colors"
                             >
-                                📱 Add to Farcaster
+                                📱 Add miniapp to Farcaster
                             </Button>
                         </div>
                     )}
-                    
+
+                    {/* Show success message if mini app is already added */}
+                    {isFarcasterEnvironment && isMiniAppAdded && (
+                        <div className="flex justify-center">
+                            <div className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg">
+                                ✅ Added to Farcaster
+                            </div>
+                        </div>
+                    )}
+
                     {/* Debug info */}
                     {process.env.NODE_ENV === 'development' && (
                         <div className="text-xs text-gray-400 mt-2 text-center">

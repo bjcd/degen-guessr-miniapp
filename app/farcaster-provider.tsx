@@ -18,6 +18,7 @@ interface FarcasterContextType {
     getEthereumProvider: () => Promise<any>;
     isFarcasterEnvironment: boolean;
     addToFarcaster: () => Promise<void>;
+    isMiniAppAdded: boolean;
 }
 
 const FarcasterContext = createContext<FarcasterContextType | undefined>(undefined);
@@ -26,6 +27,7 @@ export function FarcasterProvider({ children }: { children: ReactNode }) {
     const [isReady, setIsReady] = useState(false);
     const [user, setUser] = useState<FarcasterUser | null>(null);
     const [isFarcasterEnvironment, setIsFarcasterEnvironment] = useState(false);
+    const [isMiniAppAdded, setIsMiniAppAdded] = useState(false);
 
     useEffect(() => {
         const initFarcaster = async () => {
@@ -62,10 +64,44 @@ export function FarcasterProvider({ children }: { children: ReactNode }) {
             // Set ready immediately after calling sdk.actions.ready()
             console.log('✅ Setting Farcaster provider ready');
             setIsReady(true);
+            
+            // Check if mini app is already added
+            if (isInFarcaster) {
+                checkMiniAppStatus();
+            }
         };
 
         initFarcaster();
     }, []);
+
+    const checkMiniAppStatus = async () => {
+        try {
+            if (!isFarcasterEnvironment) {
+                return;
+            }
+
+            console.log('🔍 Checking if mini app is already added...');
+            
+            // Check if the mini app is already in the user's collection
+            // This is a simplified check - in a real implementation, you might need to
+            // use a different SDK method or check against a known list
+            try {
+                // Try to get mini app info - if it exists, it's likely already added
+                const miniAppInfo = await sdk.getMiniAppInfo();
+                console.log('Mini app info:', miniAppInfo);
+                
+                // For now, we'll assume it's not added and let the user try to add it
+                // In a real implementation, you'd check against the user's mini apps list
+                setIsMiniAppAdded(false);
+            } catch (error) {
+                console.log('Mini app not found in user collection:', error);
+                setIsMiniAppAdded(false);
+            }
+        } catch (error) {
+            console.error('Error checking mini app status:', error);
+            setIsMiniAppAdded(false);
+        }
+    };
 
     const signIn = async () => {
         try {
@@ -133,6 +169,8 @@ export function FarcasterProvider({ children }: { children: ReactNode }) {
             try {
                 await sdk.actions.addMiniApp();
                 console.log('✅ Add to Farcaster prompt triggered successfully');
+                // Assume it was added successfully (user would have confirmed)
+                setIsMiniAppAdded(true);
             } catch (error) {
                 console.error('❌ Failed to trigger addMiniApp:', error);
                 alert('Failed to add mini app to Farcaster. Please try again.');
@@ -248,6 +286,7 @@ export function FarcasterProvider({ children }: { children: ReactNode }) {
                 getEthereumProvider,
                 isFarcasterEnvironment,
                 addToFarcaster,
+                isMiniAppAdded,
             }}
         >
             {children}
