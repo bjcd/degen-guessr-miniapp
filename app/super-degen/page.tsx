@@ -145,7 +145,7 @@ export default function SuperDegenHome() {
                 timestamp: new Date(),
                 txHash: txHash
             };
-            setWinners(prev => [newWinner, ...prev].slice(0, 10)); // Keep last 10 winners
+            setWinners(prev => [newWinner, ...prev]); // Add new winner to the list
 
             setTimeout(async () => {
                 setLoadingMessage('');
@@ -214,7 +214,7 @@ export default function SuperDegenHome() {
                 setIsLoadingData(true);
                 const [potValue, pastWinners] = await Promise.all([
                     getPot(),
-                    getPastWinners(10)
+                    getPastWinners(100)
                 ]);
 
                 setPot(potValue);
