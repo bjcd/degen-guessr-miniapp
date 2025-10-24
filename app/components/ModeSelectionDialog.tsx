@@ -90,7 +90,7 @@ export default function ModeSelectionDialog({ isOpen, onSelectMode, onClose }: M
                                 {/* Mode Details */}
                                 <div className="space-y-3 text-center">
                                     <p className="text-foreground font-semibold">
-                                        Lower odds, but more cautious stakes
+                                        Lower odds, cautious stakes
                                     </p>
                                     <div className="bg-muted/40 rounded-xl p-4 space-y-2">
                                         <div className="flex items-center justify-center gap-2 text-sm">

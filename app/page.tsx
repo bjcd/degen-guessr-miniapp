@@ -576,21 +576,30 @@ export default function Home() {
                                 )}
                             </div>
                         ) : (
-                            <div className="flex flex-col items-center gap-2">
-                                <Button onClick={handleConnect} className="btn-primary">
-                                    Connect Wallet
-                                </Button>
-                                {isFarcasterEnvironment && (
-                                    <Button 
-                                        onClick={addToFarcaster} 
-                                        className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg transition-colors"
-                                    >
-                                        📱 Add to Farcaster
-                                    </Button>
-                                )}
-                            </div>
+                            <Button onClick={handleConnect} className="btn-primary">
+                                Connect Wallet
+                            </Button>
                         )}
                     </div>
+                    
+                    {/* Add to Farcaster button - shows in Farcaster environment regardless of connection status */}
+                    {isFarcasterEnvironment && (
+                        <div className="flex justify-center">
+                            <Button 
+                                onClick={addToFarcaster} 
+                                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg transition-colors"
+                            >
+                                📱 Add to Farcaster
+                            </Button>
+                        </div>
+                    )}
+                    
+                    {/* Debug info */}
+                    {process.env.NODE_ENV === 'development' && (
+                        <div className="text-xs text-gray-400 mt-2 text-center">
+                            Debug: isFarcasterEnvironment={isFarcasterEnvironment.toString()}, isConnected={isConnected.toString()}
+                        </div>
+                    )}
                 </div>
 
                 <div className="grid lg:grid-cols-3 gap-6">
