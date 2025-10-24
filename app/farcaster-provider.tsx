@@ -81,12 +81,12 @@ export function FarcasterProvider({ children }: { children: ReactNode }) {
             }
 
             console.log('🔍 Checking if mini app is already added...');
-            
+
             // For now, we'll use localStorage to track if the user has added the mini app
             // In a real implementation, you might check against Farcaster's API or use
             // a different SDK method when it becomes available
             const hasAddedMiniApp = localStorage.getItem('farcaster-miniapp-added');
-            
+
             if (hasAddedMiniApp === 'true') {
                 console.log('✅ Mini app already added (from localStorage)');
                 setIsMiniAppAdded(true);

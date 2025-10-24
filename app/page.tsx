@@ -56,7 +56,7 @@ export default function Home() {
     const [isLoadingData, setIsLoadingData] = useState(false);
     const [showModeDialog, setShowModeDialog] = useState(false);
     const [currentUserFarcasterProfile, setCurrentUserFarcasterProfile] = useState<FarcasterProfile | null>(null);
-    const [showAllWinners, setShowAllWinners] = useState(false);
+    const [winnersToShow, setWinnersToShow] = useState(5);
 
     // Function to fetch current user's Farcaster profile
     const fetchCurrentUserProfile = async (walletAddress: string) => {
@@ -805,7 +805,7 @@ export default function Home() {
                                     </div>
                                 ) : (
                                     <>
-                                        {(showAllWinners ? winners : winners.slice(0, 5)).map((winner, index) => (
+                                        {winners.slice(0, winnersToShow).map((winner, index) => (
                                             <div
                                                 key={winner.id}
                                                 className="p-4 bg-gradient-to-r from-primary/10 to-secondary/10 rounded-lg border border-primary/30 hover:border-primary/50 transition-colors"
@@ -875,13 +875,13 @@ export default function Home() {
                                                 </div>
                                             </div>
                                         ))}
-                                        {winners.length > 5 && (
+                                        {winnersToShow < winners.length && (
                                             <div className="flex justify-center mt-4">
                                                 <button
-                                                    onClick={() => setShowAllWinners(!showAllWinners)}
+                                                    onClick={() => setWinnersToShow(prev => Math.min(prev + 5, winners.length))}
                                                     className="px-6 py-2 bg-gradient-to-r from-primary to-secondary hover:from-primary/80 hover:to-secondary/80 text-white text-sm font-bold rounded-lg transition-all duration-200 transform hover:scale-105"
                                                 >
-                                                    {showAllWinners ? 'Show Less' : `More Winners (${winners.length - 5} more)`}
+                                                    Load More Winners ({Math.min(5, winners.length - winnersToShow)} more of {winners.length} total)
                                                 </button>
                                             </div>
                                         )}
