@@ -603,12 +603,6 @@ export default function Home() {
                         </div>
                     )}
 
-                    {/* Debug info */}
-                    {process.env.NODE_ENV === 'development' && (
-                        <div className="text-xs text-gray-400 mt-2 text-center">
-                            Debug: isFarcasterEnvironment={isFarcasterEnvironment.toString()}, isConnected={isConnected.toString()}
-                        </div>
-                    )}
                 </div>
 
                 <div className="grid lg:grid-cols-3 gap-6">
