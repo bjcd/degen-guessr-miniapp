@@ -550,7 +550,9 @@ export default function Home() {
                         </h1>
                         <Image src="/degen-logo.png" alt="Degen Hat" width={64} height={64} className="w-16 h-16 object-contain animate-[bounce_2s_ease-in-out_infinite] scale-x-[-1]" />
                     </div>
-                    <p className="text-muted-foreground text-sm font-medium">Guess the number. Win the pot.</p>
+                    <p className="text-muted-foreground text-sm font-medium">
+                        Guess the number. <Link href="/degen-slot" className="cursor-pointer hover:text-primary transition-colors">Win the pot.</Link>
+                    </p>
 
 
                     {/* Connection Status */}

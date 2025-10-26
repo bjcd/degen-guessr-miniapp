@@ -1,11 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { Trophy, Zap, TrendingUp, Crown, Sparkles } from "lucide-react";
 import Image from "next/image";
 import { SlotMachine } from "../components/SlotMachine";
+import { useSlotContract } from "../hooks/useSlotContract";
+import { useConfetti } from "../hooks/useConfetti";
+import { useFarcaster } from "../farcaster-provider";
+import { fetchFarcasterProfile, FarcasterProfile, setCurrentUserProfile } from "../lib/farcaster-profiles";
 
 interface SpinResult {
     id: number;
@@ -32,103 +36,618 @@ const SLOT_ICONS = ["🎰", "💎", "⭐", "👑", "🍒", "🔔", "💰", "🎲
 const HAT_ICON = "🎩";
 
 const Index = () => {
-    const [pot, setPot] = useState(2340);
+    const { isReady, user, signIn, isFarcasterEnvironment, addToFarcaster, isMiniAppAdded } = useFarcaster();
+    const [pot, setPot] = useState(0);
+    const [balance, setBalance] = useState(0);
+    const [allowance, setAllowance] = useState(0);
     const [spinning, setSpinning] = useState(false);
-    const [reels, setReels] = useState<string[]>([HAT_ICON, HAT_ICON, HAT_ICON]);
+    const [reels, setReels] = useState<string[]>(["⭐", "🎩", "🍒"]);
+    const spinningRef = useRef(false);
+
     const [lastSpins, setLastSpins] = useState<SpinResult[]>([]);
-    const [totalSpins, setTotalSpins] = useState(26);
+    const [totalSpins, setTotalSpins] = useState(0);
+    const [totalWinnings, setTotalWinnings] = useState(0);
+    const [loadingMessage, setLoadingMessage] = useState("");
+    const [statusMessage, setStatusMessage] = useState("");
+    const [jackpotText, setJackpotText] = useState("PLAY & WIN");
+    const [finalReels, setFinalReels] = useState<string[]>([]);
+    const [currentUserFarcasterProfile, setCurrentUserFarcasterProfile] = useState<FarcasterProfile | null>(null);
+    const [gameConstants, setGameConstants] = useState({
+        costPerSpin: 100,
+        potAddPerSpin: 70,
+        treasuryAddPerSpin: 30,
+        initialPot: 7500
+    });
+    const [payouts, setPayouts] = useState({
+        threeSamePayout: 500,
+        twoSamePayout: 250,
+        oneHatPayout: 50,
+        twoHatsPayout: 350,
+        jackpotShareBps: 5000
+    });
 
-    const [winners] = useState<Winner[]>([
-        { id: 1, address: "0x742d...3f2a", amount: 1890, timestamp: new Date(Date.now() - 3600000) },
-        { id: 2, address: "0x8b3f...9c4d", amount: 2450, timestamp: new Date(Date.now() - 7200000) },
-        { id: 3, address: "0x1a5c...7e8b", amount: 3120, timestamp: new Date(Date.now() - 10800000) },
-    ]);
+    const [winners] = useState<Winner[]>([]);
+    const [leaderboard] = useState<LeaderboardEntry[]>([]);
 
-    const [leaderboard] = useState<LeaderboardEntry[]>([
-        { address: "0x8b3f...9c4d", wins: 12, totalWon: 23400 },
-        { address: "0x742d...3f2a", wins: 8, totalWon: 15680 },
-        { address: "0x1a5c...7e8b", wins: 6, totalWon: 11200 },
-        { address: "0x9f2e...4a6c", wins: 5, totalWon: 8900 },
-        { address: "0x3d8b...1f5e", wins: 4, totalWon: 7200 },
-    ]);
+    const { triggerConfetti } = useConfetti();
 
-    const getRandomIcon = () => {
-        const allIcons = [...SLOT_ICONS, HAT_ICON];
-        return allIcons[Math.floor(Math.random() * allIcons.length)];
-    };
-
-    const handleSpin = () => {
-        if (spinning) return;
-
-        setSpinning(true);
-        setPot(pot + 90);
-        setTotalSpins(totalSpins + 1);
-
-        // Generate random results for each reel
-        const newReels = [getRandomIcon(), getRandomIcon(), getRandomIcon()];
-        setReels(newReels);
-    };
-
-    const handleSpinComplete = () => {
-        setSpinning(false);
-
-        // Check for win conditions
-        const allHats = reels.every((reel) => reel === HAT_ICON);
-        const allSame = reels[0] === reels[1] && reels[1] === reels[2];
-        const twoSame = reels[0] === reels[1] || reels[1] === reels[2] || reels[0] === reels[2];
-
-        let winAmount = 0;
-        let winTitle = "";
-        let winDescription = "";
-
-        if (allHats) {
-            winAmount = pot;
-            winTitle = "🎩🎩🎩 JACKPOT!!!";
-            winDescription = `THREE HATS! You won ${winAmount} $DEGEN!`;
-        } else if (allSame) {
-            winAmount = Math.floor(pot * 0.3);
-            winTitle = "🎉 BIG WIN!";
-            winDescription = `Three of a kind! You won ${winAmount} $DEGEN!`;
-        } else if (twoSame) {
-            winAmount = 200;
-            winTitle = "✨ Nice!";
-            winDescription = `Two matching symbols! You won ${winAmount} $DEGEN!`;
+    // Function to fetch current user's Farcaster profile
+    const fetchCurrentUserProfile = async (walletAddress: string) => {
+        if (!isFarcasterEnvironment) {
+            console.log('❌ Not in Farcaster environment, skipping current user profile fetch');
+            return null;
         }
 
-        // Record the spin
-        const newSpin: SpinResult = {
-            id: Date.now(),
-            reels: [...reels],
-            won: winAmount > 0,
-            amount: winAmount,
-            timestamp: new Date(),
-        };
-        setLastSpins([newSpin, ...lastSpins.slice(0, 4)]);
+        try {
+            console.log('🔍 Fetching current user Farcaster profile for:', walletAddress);
+            const profile = await fetchFarcasterProfile(walletAddress);
+            console.log('🔍 Current user profile result:', profile);
+            return profile;
+        } catch (error) {
+            console.error('❌ Error fetching current user profile:', error);
+            return null;
+        }
+    };
 
-        if (winAmount > 0) {
-            alert(`${winTitle}\n${winDescription}`);
+    // Create stable callbacks to prevent re-renders
+    const onSpinResult = useCallback(async (roll: number, category: string, payout: string, potAfter: string) => {
+        console.log('Spin result received:', { roll, category, payout, potAfter });
 
-            setTimeout(() => {
-                setPot(allHats ? 900 : pot - winAmount);
-            }, 2000);
+        // Check if we're still spinning (using ref to avoid stale closure)
+        if (!spinningRef.current) {
+            console.log('🎯 Not spinning anymore, ignoring VRF result');
+            return;
+        }
+
+        // Determine final reel display based on category using deterministic VRF result
+        let newReels: string[] = [];
+        const nonHatIcons = SLOT_ICONS.filter(icon => icon !== HAT_ICON);
+
+        if (category === "JACKPOT") {
+            newReels = [HAT_ICON, HAT_ICON, HAT_ICON];
+        } else if (category === "THREE_SAME") {
+            const symbolIndex = Number(roll) % nonHatIcons.length;
+            const symbol = nonHatIcons[symbolIndex];
+            newReels = [symbol, symbol, symbol];
+        } else if (category === "TWO_SAME") {
+            const symbol1Index = Number(roll) % nonHatIcons.length;
+            const symbol2Index = (Number(roll) + 1) % nonHatIcons.length;
+            const symbol1 = nonHatIcons[symbol1Index];
+            const symbol2 = nonHatIcons[symbol2Index];
+            newReels = [symbol1, symbol1, symbol2];
+        } else if (category === "ONE_HAT") {
+            const symbol1Index = Number(roll) % nonHatIcons.length;
+            const symbol2Index = (Number(roll) + 1) % nonHatIcons.length;
+            const symbol3Index = (Number(roll) + 2) % nonHatIcons.length;
+            const symbol1 = nonHatIcons[symbol1Index];
+            const symbol2 = nonHatIcons[symbol2Index];
+            const symbol3 = nonHatIcons[symbol3Index];
+            const hatPosition = Number(roll) % 3;
+            newReels = [symbol1, symbol2, symbol3];
+            newReels[hatPosition] = HAT_ICON;
+        } else if (category === "TWO_HATS") {
+            const symbol1Index = Number(roll) % nonHatIcons.length;
+            const symbol2Index = (Number(roll) + 1) % nonHatIcons.length;
+            const symbol3Index = (Number(roll) + 2) % nonHatIcons.length;
+            const symbol1 = nonHatIcons[symbol1Index];
+            const symbol2 = nonHatIcons[symbol2Index];
+            const symbol3 = nonHatIcons[symbol3Index];
+            const hatPosition = Number(roll) % 3;
+            newReels = [symbol1, symbol2, symbol3];
+            // Place hats in the two positions that are NOT the hatPosition
+            const otherPositions = [0, 1, 2].filter(i => i !== hatPosition);
+            newReels[otherPositions[0]] = HAT_ICON;
+            newReels[otherPositions[1]] = HAT_ICON;
         } else {
-            alert("Not this time...\nTry again! The jackpot is growing!");
+            // NOTHING - all different, no hats
+            const symbol1Index = Number(roll) % nonHatIcons.length;
+            const symbol2Index = (Number(roll) + 1) % nonHatIcons.length;
+            const symbol3Index = (Number(roll) + 2) % nonHatIcons.length;
+            newReels = [nonHatIcons[symbol1Index], nonHatIcons[symbol2Index], nonHatIcons[symbol3Index]];
+        }
+
+        // Store the final result but keep spinning
+        console.log('🎯 VRF result received - keeping spinning:', newReels);
+        setFinalReels(newReels);
+        setPot(Number(potAfter));
+        setLoadingMessage("");
+
+        // Keep spinning for 1 second after VRF result for natural look, then start reveal
+        setTimeout(() => {
+            console.log('🎯 Starting graceful reveal of results:', newReels);
+
+            // Reveal each emoji one by one with delays
+            const revealDelays = [500, 1000, 1500]; // 0.5s, 1s, 1.5s delays
+
+            newReels.forEach((emoji, index) => {
+                setTimeout(() => {
+                    console.log(`Revealing emoji ${index + 1}: ${emoji}`);
+
+                    // Call the global reveal function instead of updating reels prop
+                    if ((window as any).revealEmoji) {
+                        (window as any).revealEmoji(index, emoji);
+                    }
+
+                    // Stop spinning after the last emoji is revealed
+                    if (index === newReels.length - 1) {
+                        setTimeout(() => {
+                            console.log('🎯 All emojis revealed, stopping spinning');
+                            setSpinning(false);
+                            spinningRef.current = false;
+                            // Update reels prop with final result so they persist
+                            setReels(newReels);
+                        }, 200); // Small delay after last emoji
+                    }
+                }, revealDelays[index]);
+            });
+        }, 1000); // 1 second delay after VRF result before starting reveal
+
+        const winAmount = Number(payout);
+        if (winAmount > 0) {
+            // Record the spin
+            const newSpin: SpinResult = {
+                id: Date.now(),
+                reels: newReels,
+                won: true,
+                amount: winAmount,
+                timestamp: new Date(),
+            };
+            setLastSpins([newSpin, ...lastSpins.slice(0, 4)]);
+
+            // Set status messages based on category
+            if (category === "JACKPOT") {
+                triggerConfetti();
+                setJackpotText("JACKPOT!! 🎩 🎩");
+                setStatusMessage("");
+            } else if (category === "THREE_SAME") {
+                triggerConfetti();
+                setJackpotText("WON 500 DEGEN 🎩");
+                setStatusMessage("");
+            } else if (category === "TWO_SAME") {
+                triggerConfetti();
+                setJackpotText("WON 250 DEGEN 🎩");
+                setStatusMessage("");
+            } else if (category === "ONE_HAT") {
+                triggerConfetti();
+                setJackpotText("WON 50 DEGEN 🎩");
+                setStatusMessage("");
+            } else if (category === "TWO_HATS") {
+                triggerConfetti();
+                setJackpotText("WON 350 DEGEN 🎩");
+                setStatusMessage("");
+            }
+
+            // Reload user data after win
+            if (account) {
+                (async () => {
+                    try {
+                        const cacheKey = `slot-stats-${account}`;
+                        const cachedStats = localStorage.getItem(cacheKey);
+                        let cachedSpins = 0;
+                        let cachedWinnings = 0;
+
+                        if (cachedStats) {
+                            const parsed = JSON.parse(cachedStats);
+                            cachedSpins = parsed.spins || 0;
+                            cachedWinnings = parsed.winnings || 0;
+                        }
+
+                        const [balanceValue, allowanceValue, spinsValue, winningsValue] = await Promise.all([
+                            getTokenBalance(),
+                            getAllowance(),
+                            getPlayerSpins(account).catch(() => cachedSpins),
+                            getPlayerWinnings(account).catch(() => cachedWinnings)
+                        ]);
+
+                        setBalance(balanceValue);
+                        setAllowance(allowanceValue);
+                        setTotalSpins(spinsValue);
+                        setTotalWinnings(winningsValue);
+
+                        // Cache the successful results
+                        localStorage.setItem(cacheKey, JSON.stringify({
+                            spins: spinsValue,
+                            winnings: winningsValue,
+                            timestamp: Date.now()
+                        }));
+                    } catch (error) {
+                        console.error('Error loading user data:', error);
+                    }
+                })();
+            }
+        } else {
+            // Record the spin
+            const newSpin: SpinResult = {
+                id: Date.now(),
+                reels: newReels,
+                won: false,
+                amount: 0,
+                timestamp: new Date(),
+            };
+            setLastSpins([newSpin, ...lastSpins.slice(0, 4)]);
+
+            setJackpotText("NO LUCK. TRY AGAIN");
+            setStatusMessage("");
+
+            // Reload user data after no-win spin
+            if (account) {
+                (async () => {
+                    try {
+                        const cacheKey = `slot-stats-${account}`;
+                        const cachedStats = localStorage.getItem(cacheKey);
+                        let cachedSpins = 0;
+                        let cachedWinnings = 0;
+
+                        if (cachedStats) {
+                            const parsed = JSON.parse(cachedStats);
+                            cachedSpins = parsed.spins || 0;
+                            cachedWinnings = parsed.winnings || 0;
+                        }
+
+                        const [balanceValue, allowanceValue, spinsValue, winningsValue] = await Promise.all([
+                            getTokenBalance(),
+                            getAllowance(),
+                            getPlayerSpins(account).catch(() => cachedSpins),
+                            getPlayerWinnings(account).catch(() => cachedWinnings)
+                        ]);
+
+                        setBalance(balanceValue);
+                        setAllowance(allowanceValue);
+                        setTotalSpins(spinsValue);
+                        setTotalWinnings(winningsValue);
+
+                        // Cache the successful results
+                        localStorage.setItem(cacheKey, JSON.stringify({
+                            spins: spinsValue,
+                            winnings: winningsValue,
+                            timestamp: Date.now()
+                        }));
+                    } catch (error) {
+                        console.error('Error loading user data:', error);
+                    }
+                })();
+            }
+        }
+    }, [triggerConfetti, lastSpins]);
+
+    const onError = useCallback((message: string) => {
+        setLoadingMessage(message);
+        setSpinning(false);
+        spinningRef.current = false;
+        setStatusMessage("");
+    }, []);
+
+    const {
+        connectWallet,
+        getPot,
+        getTokenBalance,
+        getAllowance,
+        approveTokens,
+        spin,
+        getGameConstants: fetchGameConstants,
+        getPayouts: fetchPayouts,
+        getPlayerSpins,
+        getPlayerWinnings,
+        isConnected,
+        isLoading,
+        account
+    } = useSlotContract({
+        onSpinResult,
+        onError
+    });
+
+    // Load public data (pot, treasury, game constants)
+    const loadPublicData = async () => {
+        try {
+            const [potValue, constants, payoutsData] = await Promise.all([
+                getPot(),
+                fetchGameConstants(),
+                fetchPayouts()
+            ]);
+
+            setPot(potValue);
+            setGameConstants(constants);
+            setPayouts(payoutsData);
+        } catch (error) {
+            console.error('Error loading public data:', error);
         }
     };
+
+    // Load data on mount and when account changes
+    useEffect(() => {
+        loadPublicData();
+    }, []);
+
+    useEffect(() => {
+        if (account) {
+            const loadUserData = async () => {
+                try {
+                    console.log('🎯 Loading user data for account:', account);
+
+                    // Try to load from cache first
+                    const cacheKey = `slot-stats-${account}`;
+                    const cachedStats = localStorage.getItem(cacheKey);
+                    let cachedSpins = 0;
+                    let cachedWinnings = 0;
+
+                    if (cachedStats) {
+                        const parsed = JSON.parse(cachedStats);
+                        cachedSpins = parsed.spins || 0;
+                        cachedWinnings = parsed.winnings || 0;
+                        console.log('🎯 Loaded cached stats:', { cachedSpins, cachedWinnings });
+                    }
+
+                    const [balanceValue, allowanceValue, spinsValue, winningsValue] = await Promise.all([
+                        getTokenBalance(),
+                        getAllowance(),
+                        getPlayerSpins(account).catch(() => cachedSpins),
+                        getPlayerWinnings(account).catch(() => cachedWinnings)
+                    ]);
+
+                    console.log('🎯 User data loaded:', { balanceValue, allowanceValue, spinsValue, winningsValue });
+                    setBalance(balanceValue);
+                    setAllowance(allowanceValue);
+                    setTotalSpins(spinsValue);
+                    setTotalWinnings(winningsValue);
+
+                    // Cache the successful results
+                    localStorage.setItem(cacheKey, JSON.stringify({
+                        spins: spinsValue,
+                        winnings: winningsValue,
+                        timestamp: Date.now()
+                    }));
+                } catch (error) {
+                    console.error('Error loading user data:', error);
+
+                    // Fallback to cached data on complete failure
+                    const cacheKey = `slot-stats-${account}`;
+                    const cachedStats = localStorage.getItem(cacheKey);
+                    if (cachedStats) {
+                        const parsed = JSON.parse(cachedStats);
+                        console.log('🎯 Using cached stats due to error:', parsed);
+                        setTotalSpins(parsed.spins || 0);
+                        setTotalWinnings(parsed.winnings || 0);
+                    }
+                }
+            };
+            loadUserData();
+        }
+    }, [account, getTokenBalance, getAllowance, getPlayerSpins, getPlayerWinnings]);
+
+    // Auto-connect wallet in Farcaster environment
+    useEffect(() => {
+        console.log('Auto-connect useEffect triggered:', {
+            isReady,
+            isFarcasterEnvironment,
+            isConnected,
+            isLoading,
+            connectWallet: typeof connectWallet
+        });
+
+        if (isReady && isFarcasterEnvironment && !isConnected) {
+            console.log('🚀 Auto-connecting wallet in Farcaster environment...');
+            connectWallet();
+        } else {
+            console.log('❌ Auto-connect conditions not met:', {
+                isReady,
+                isFarcasterEnvironment,
+                isConnected,
+                isLoading
+            });
+        }
+    }, [isReady, isFarcasterEnvironment, isConnected, connectWallet]);
+
+    useEffect(() => {
+        if (isConnected && account) {
+            // Fetch current user's Farcaster profile
+            if (isFarcasterEnvironment) {
+                fetchCurrentUserProfile(account).then(profile => {
+                    setCurrentUserFarcasterProfile(profile);
+                });
+            }
+
+            // Set current user profile for Farcaster context
+            if (isFarcasterEnvironment && user) {
+                console.log('🔧 Setting current user profile from SDK context:', { user, account });
+                setCurrentUserProfile(user, account);
+            }
+        }
+    }, [isConnected, account, isFarcasterEnvironment, user]);
+
+    const handleSpin = async () => {
+        if (spinning || !isConnected) return;
+
+        // Check if user has enough balance
+        if (balance < gameConstants.costPerSpin) {
+            alert(`Insufficient balance! You need ${gameConstants.costPerSpin} $DEGEN to spin.`);
+            return;
+        }
+
+        // Check if user has enough allowance
+        if (allowance < 100) {
+            alert(`Insufficient allowance! Please approve at least 100 $DEGEN first.`);
+            return;
+        }
+
+        console.log('🎯 Starting spin - setting spinning to true');
+        setSpinning(true);
+        spinningRef.current = true;
+        setJackpotText("SPINNING...");
+        setFinalReels([]); // Clear final reels
+
+        const success = await spin();
+        if (!success) {
+            console.log('🎯 Spin failed - stopping spinning');
+            setSpinning(false);
+            spinningRef.current = false;
+            setJackpotText("PLAY TO WIN");
+        } else {
+            console.log('🎯 Spin transaction successful - keeping spinning until VRF result');
+            setJackpotText("Getting results...");
+        }
+    };
+
+    const handleApprove = async () => {
+        if (!isConnected) return;
+
+        setLoadingMessage("Approving tokens...");
+        const approvalAmount = Math.ceil(gameConstants.costPerSpin * 1.1); // 10% buffer
+        console.log(`🎯 Approving ${approvalAmount} DEGEN (cost is ${gameConstants.costPerSpin})`);
+        const success = await approveTokens(approvalAmount.toString());
+        setLoadingMessage("");
+
+        if (success) {
+            if (account) {
+                try {
+                    const [balanceValue, allowanceValue] = await Promise.all([
+                        getTokenBalance(),
+                        getAllowance()
+                    ]);
+
+                    setBalance(balanceValue);
+                    setAllowance(allowanceValue);
+                } catch (error) {
+                    console.error('Error loading user data:', error);
+                }
+            }
+        }
+    };
+
+    const handleConnect = async () => {
+        if (isFarcasterEnvironment) {
+            await signIn();
+        } else {
+            await connectWallet();
+        }
+    };
+
+    const handlePreApprove = async (amount: number) => {
+        if (!isConnected) {
+            await handleConnect();
+            return;
+        }
+
+        try {
+            setLoadingMessage(`Approving ${amount} DEGEN...`);
+            const success = await approveTokens(amount.toString());
+            if (success) {
+                setLoadingMessage(`✅ Approval successful!`);
+                await new Promise(resolve => setTimeout(resolve, 500));
+                const allowanceAmount = await getAllowance();
+                setAllowance(allowanceAmount);
+                setTimeout(() => setLoadingMessage(''), 2000);
+            } else {
+                setLoadingMessage('❌ Approval failed. Please try again.');
+                setTimeout(() => setLoadingMessage(''), 2000);
+            }
+        } catch (error) {
+            console.error('Error pre-approving tokens:', error);
+            setLoadingMessage('❌ Approval failed: ' + (error as Error).message);
+            setTimeout(() => setLoadingMessage(''), 2000);
+        }
+    };
+
+    const handleRevoke = async () => {
+        if (!isConnected) {
+            await handleConnect();
+            return;
+        }
+
+        try {
+            setLoadingMessage('Revoking approval...');
+            const success = await approveTokens('0');
+            if (success) {
+                setLoadingMessage('✅ Approval revoked!');
+                await new Promise(resolve => setTimeout(resolve, 500));
+                const allowanceAmount = await getAllowance();
+                setAllowance(allowanceAmount);
+                setTimeout(() => setLoadingMessage(''), 2000);
+            } else {
+                setLoadingMessage('❌ Revocation failed. Please try again.');
+                setTimeout(() => setLoadingMessage(''), 2000);
+            }
+        } catch (error) {
+            console.error('Error revoking approval:', error);
+            setLoadingMessage('❌ Revocation failed: ' + (error as Error).message);
+            setTimeout(() => setLoadingMessage(''), 2000);
+        }
+    };
+
+    console.log('Page render - isReady:', isReady, 'user:', user);
+
+    if (!isReady) {
+        console.log('Showing loading screen');
+        return (
+            <main className="min-h-screen bg-gradient-to-br from-background via-[hsl(270_50%_10%)] to-background flex items-center justify-center">
+                <div className="text-center space-y-4">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+                    <p className="text-muted-foreground">Loading DEGEN SLOTS...</p>
+                </div>
+            </main>
+        );
+    }
 
     return (
         <main className="min-h-screen bg-gradient-to-br from-background via-[hsl(270_50%_10%)] to-background p-4 py-8">
             <div className="max-w-6xl mx-auto space-y-6 animate-fade-in">
-                {/* Header with Logo */}
+                {/* Header with Logo and Wallet Connection */}
                 <div className="text-center space-y-3">
                     <div className="flex items-center justify-center gap-3">
                         <Image src="/degen-logo.png" alt="Degen Hat" width={64} height={64} className="object-contain animate-[bounce_2s_ease-in-out_infinite]" />
                         <h1 className="text-5xl md:text-6xl font-black bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent neon-glow">
-                            DEGEN SLOTS
+                            DEGEN GUESSR
                         </h1>
                         <Image src="/degen-logo.png" alt="Degen Hat" width={64} height={64} className="object-contain animate-[bounce_2s_ease-in-out_infinite] scale-x-[-1]" />
                     </div>
                     <p className="text-muted-foreground text-sm font-medium">Spin the reels. Match three hats. Win the jackpot.</p>
+
+                    {/* Connection Status */}
+                    <div className="flex items-center justify-center gap-4">
+                        {isConnected ? (
+                            <div className="text-white text-sm font-bold flex items-center gap-2">
+                                {isFarcasterEnvironment && currentUserFarcasterProfile ? (
+                                    <div className="flex items-center gap-2">
+                                        <img
+                                            src={currentUserFarcasterProfile.pfpUrl || '/default-avatar.png'}
+                                            alt="Profile"
+                                            className="w-6 h-6 rounded-full"
+                                            onError={(e) => {
+                                                e.currentTarget.src = '/default-avatar.png';
+                                            }}
+                                        />
+                                        <span>@{currentUserFarcasterProfile.username}</span>
+                                    </div>
+                                ) : (
+                                    <span>Connected: {account?.slice(0, 6)}...{account?.slice(-4)}</span>
+                                )}
+                            </div>
+                        ) : (
+                            <Button onClick={handleConnect} className="btn-primary">
+                                Connect Wallet
+                            </Button>
+                        )}
+                    </div>
+
+                    {/* Add to Farcaster button */}
+                    {isFarcasterEnvironment && !isMiniAppAdded && (
+                        <div className="flex justify-center">
+                            <Button
+                                onClick={addToFarcaster}
+                                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg transition-colors"
+                            >
+                                📱 Add miniapp to Farcaster
+                            </Button>
+                        </div>
+                    )}
+
+                    {/* Show success message if mini app is already added */}
+                    {isFarcasterEnvironment && isMiniAppAdded && (
+                        <div className="flex justify-center">
+                            <div className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg">
+                                ✅ Added to Farcaster
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 <div className="grid lg:grid-cols-3 gap-6">
@@ -151,25 +670,59 @@ const Index = () => {
                         </Card>
 
                         {/* Slot Machine */}
-                        <SlotMachine spinning={spinning} reels={reels} onSpinComplete={handleSpinComplete} />
+                        <SlotMachine
+                            spinning={spinning}
+                            reels={reels}
+                            jackpotText={jackpotText}
+                            onSpinComplete={() => { }}
+                            onRevealEmoji={() => { }}
+                        />
 
-                        {/* Spin Button */}
-                        <Button
-                            onClick={handleSpin}
-                            disabled={spinning}
-                            className="w-full h-16 md:h-20 bg-gradient-to-r from-primary to-secondary hover:from-primary-glow hover:to-secondary-glow text-white font-black text-xl md:text-2xl transition-all duration-300 neon-button rounded-2xl flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            <Image src="/degen-logo.png" alt="Hat" width={32} height={32} className="object-contain" />
-                            <Zap className="w-6 h-6" />
-                            {spinning ? "SPINNING..." : "SPIN FOR 100 $DEGEN"}
-                            <Zap className="w-6 h-6" />
-                        </Button>
+                        {/* Wallet Connection */}
+                        {!isConnected ? (
+                            <Button
+                                onClick={handleConnect}
+                                disabled={isLoading}
+                                className="w-full h-16 md:h-20 bg-gradient-to-r from-primary to-secondary hover:from-primary-glow hover:to-secondary-glow text-white font-black text-xl md:text-2xl transition-all duration-300 neon-button rounded-2xl flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <Zap className="w-6 h-6" />
+                                {isLoading ? "CONNECTING..." : "CONNECT WALLET"}
+                                <Zap className="w-6 h-6" />
+                            </Button>
+                        ) : (
+                            <>
+                                {/* Approval Button */}
+                                {(account && allowance < 110 && gameConstants.costPerSpin > 0) && (
+                                    <Button
+                                        onClick={handleApprove}
+                                        disabled={isLoading}
+                                        className="w-full h-16 md:h-20 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 text-white font-black text-xl md:text-2xl transition-all duration-300 neon-button rounded-2xl flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        <Zap className="w-6 h-6" />
+                                        {isLoading ? "APPROVING..." : `APPROVE ${gameConstants.costPerSpin} $DEGEN`}
+                                        <Zap className="w-6 h-6" />
+                                    </Button>
+                                )}
+
+                                {/* Spin Button */}
+                                <Button
+                                    onClick={handleSpin}
+                                    disabled={spinning || isLoading || allowance < 100 || balance < gameConstants.costPerSpin}
+                                    className="w-full h-16 md:h-20 bg-gradient-to-r from-primary to-secondary hover:from-primary-glow hover:to-secondary-glow text-white font-black text-xl md:text-2xl transition-all duration-300 neon-button rounded-2xl flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    <Image src="/degen-logo.png" alt="Hat" width={32} height={32} className="object-contain" />
+                                    <Zap className="w-6 h-6" />
+                                    {spinning ? "SPINNING..." : `SPIN FOR ${gameConstants.costPerSpin} $DEGEN`}
+                                    <Zap className="w-6 h-6" />
+                                </Button>
+                            </>
+                        )}
 
                         {/* Stats */}
                         <div className="grid grid-cols-2 gap-4">
                             <Card className="glass-card gradient-border p-5">
                                 <div className="flex items-center gap-2 text-muted-foreground text-xs font-semibold mb-2">
-                                    <TrendingUp className="w-4 h-4" />
+                                    <Zap className="w-4 h-4" />
                                     <span>TOTAL SPINS</span>
                                 </div>
                                 <div className="text-4xl font-black text-foreground">{totalSpins}</div>
@@ -177,12 +730,23 @@ const Index = () => {
 
                             <Card className="glass-card gradient-border p-5">
                                 <div className="flex items-center gap-2 text-muted-foreground text-xs font-semibold mb-2">
-                                    <Zap className="w-4 h-4" />
-                                    <span>SPIN COST</span>
+                                    <Trophy className="w-4 h-4 text-yellow-400" />
+                                    <span>TOTAL WINNINGS</span>
                                 </div>
-                                <div className="text-4xl font-black text-foreground">100</div>
+                                <div className="text-4xl font-black text-foreground">{Math.floor(totalWinnings)}</div>
+                                <div className="text-xs text-muted-foreground">$DEGEN</div>
                             </Card>
                         </div>
+
+                        {/* Your Balance */}
+                        <Card className="glass-card gradient-border p-5">
+                            <div className="flex items-center gap-2 text-muted-foreground text-xs font-semibold mb-2">
+                                <TrendingUp className="w-4 h-4" />
+                                <span>YOUR BALANCE</span>
+                            </div>
+                            <div className="text-4xl font-black text-foreground">{balance.toFixed(2)}</div>
+                            <div className="text-xs text-muted-foreground">$DEGEN</div>
+                        </Card>
 
                         {/* Recent Spins */}
                         {lastSpins.length > 0 && (
@@ -218,93 +782,74 @@ const Index = () => {
                         )}
                     </div>
 
-                    {/* Right Column - Leaderboard & Winners */}
+                    {/* Right Column - Info */}
                     <div className="space-y-6">
-                        {/* Leaderboard */}
-                        <Card className="glass-card gradient-border p-5">
-                            <div className="flex items-center gap-2 mb-4">
-                                <Crown className="w-5 h-5 text-primary" />
-                                <h2 className="text-lg font-black text-foreground">LEADERBOARD</h2>
-                            </div>
-                            <div className="space-y-2">
-                                {leaderboard.map((entry, index) => (
-                                    <div
-                                        key={entry.address}
-                                        className="flex items-center justify-between p-3 bg-muted/40 rounded-lg border border-primary/20 hover:bg-muted/60 transition-colors"
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <div className={`
-                        w-8 h-8 rounded-full flex items-center justify-center font-black text-sm
-                        ${index === 0 ? 'bg-gradient-to-br from-yellow-400 to-yellow-600 text-black' : ''}
-                        ${index === 1 ? 'bg-gradient-to-br from-gray-300 to-gray-400 text-black' : ''}
-                        ${index === 2 ? 'bg-gradient-to-br from-orange-400 to-orange-600 text-black' : ''}
-                        ${index > 2 ? 'bg-muted text-foreground' : ''}
-                      `}>
-                                                {index + 1}
-                                            </div>
-                                            <div>
-                                                <div className="text-sm font-bold text-foreground">{entry.address}</div>
-                                                <div className="text-xs text-muted-foreground">{entry.wins} wins</div>
-                                            </div>
-                                        </div>
-                                        <div className="text-right">
-                                            <div className="text-sm font-black text-primary">{entry.totalWon}</div>
-                                            <div className="text-xs text-muted-foreground">$DEGEN</div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </Card>
+                        {/* Pre-approval Section */}
+                        {isConnected && (
+                            <Card className="glass-card gradient-border p-6 space-y-4">
+                                <div className="text-center space-y-2">
+                                    <h3 className="text-xl font-bold text-foreground">Pre-approve to spin faster</h3>
+                                    <p className="text-sm text-muted-foreground">Your allowance is {allowance.toFixed(0)} DEGEN</p>
+                                </div>
 
-                        {/* Last Winners */}
-                        <Card className="glass-card gradient-border p-5">
-                            <div className="flex items-center gap-2 mb-4">
-                                <Trophy className="w-5 h-5 text-secondary" />
-                                <h2 className="text-lg font-black text-foreground">LAST WINNERS</h2>
-                            </div>
-                            <div className="space-y-3">
-                                {winners.map((winner, index) => (
-                                    <div
-                                        key={winner.id}
-                                        className="p-4 bg-gradient-to-r from-primary/10 to-secondary/10 rounded-lg border border-primary/30 hover:border-primary/50 transition-colors"
+                                <div className="grid grid-cols-3 gap-3">
+                                    <Button
+                                        onClick={() => handlePreApprove(1000)}
+                                        className="h-12 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 text-white font-bold text-sm transition-all duration-300 rounded-xl"
+                                        disabled={spinning || isLoading}
                                     >
-                                        <div className="flex items-center justify-between mb-2">
-                                            <span className="text-sm font-bold text-foreground">{winner.address}</span>
-                                            <Trophy className={`w-4 h-4 ${index === 0 ? 'text-yellow-400' : 'text-primary'}`} />
-                                        </div>
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-xs text-muted-foreground">
-                                                {new Date(winner.timestamp).toLocaleDateString('en-US')}
-                                            </span>
-                                            <span className="text-lg font-black text-primary">{winner.amount} $DEGEN</span>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </Card>
+                                        1000 DEGEN
+                                    </Button>
+
+                                    <Button
+                                        onClick={() => handlePreApprove(8000)}
+                                        className="h-12 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 text-white font-bold text-sm transition-all duration-300 rounded-xl"
+                                        disabled={spinning || isLoading}
+                                    >
+                                        8000 DEGEN
+                                    </Button>
+
+                                    <Button
+                                        onClick={handleRevoke}
+                                        className="h-12 bg-gradient-to-r from-primary/80 to-secondary/80 hover:from-primary/70 hover:to-secondary/70 text-white font-bold text-sm transition-all duration-300 rounded-xl"
+                                        disabled={spinning || isLoading}
+                                    >
+                                        Revoke
+                                    </Button>
+                                </div>
+                            </Card>
+                        )}
 
                         {/* How to Play */}
                         <Card className="glass-card border border-muted/30 p-4">
                             <div className="text-xs font-medium text-muted-foreground space-y-2">
                                 <p className="flex items-start gap-2">
+                                    <span className="text-primary font-bold">🎩🎩🎩</span>
+                                    Three hats = JACKPOT ({payouts.jackpotShareBps / 100}% of pot)
+                                </p>
+                                <p className="flex items-start gap-2">
+                                    <span className="text-primary font-bold">🎰🎰🎰</span>
+                                    Three same = {payouts.threeSamePayout} $DEGEN
+                                </p>
+                                <p className="flex items-start gap-2">
+                                    <span className="text-primary font-bold">🎩🎩</span>
+                                    Two hats = {payouts.twoHatsPayout} $DEGEN
+                                </p>
+                                <p className="flex items-start gap-2">
+                                    <span className="text-primary font-bold">💎💎</span>
+                                    Two same = {payouts.twoSamePayout} $DEGEN
+                                </p>
+                                <p className="flex items-start gap-2">
                                     <span className="text-primary font-bold">🎩</span>
-                                    Three hats = JACKPOT
+                                    One hat = {payouts.oneHatPayout} $DEGEN
                                 </p>
-                                <p className="flex items-start gap-2">
-                                    <span className="text-primary font-bold">🎰</span>
-                                    Three same = 30% of pot
-                                </p>
-                                <p className="flex items-start gap-2">
-                                    <span className="text-primary font-bold">💎</span>
-                                    Two same = 200 $DEGEN
-                                </p>
-                                <p className="flex items-start gap-2">
+                                <br /><p className="flex items-start gap-2">
                                     <span className="text-primary font-bold">⚡</span>
-                                    Each spin costs 100
+                                    Each spin costs {gameConstants.costPerSpin} $DEGEN
                                 </p>
                                 <p className="flex items-start gap-2">
                                     <span className="text-primary font-bold">💰</span>
-                                    90 added to jackpot
+                                    {gameConstants.potAddPerSpin} added to jackpot
                                 </p>
                             </div>
                         </Card>
