@@ -421,6 +421,11 @@ https://www.degenguessr.xyz`.trim();
         refetchPlayerStatsRef.current = refetchPlayerStats;
     }, [refetchPlayerStats]);
 
+    // Debug: Log state changes
+    useEffect(() => {
+        console.log('📊 State update - totalSpins:', totalSpins, 'totalWinnings:', totalWinnings);
+    }, [totalSpins, totalWinnings]);
+
     // Load public data (pot, treasury, game constants)
     const loadPublicData = async () => {
         try {
