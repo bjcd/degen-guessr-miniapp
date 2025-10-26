@@ -281,44 +281,7 @@ https://www.degenguessr.xyz`.trim();
 
             // Reload user data after win
             if (account) {
-                (async () => {
-                    try {
-                        const [balanceValue, allowanceValue, playerStats, allSpins] = await Promise.all([
-                            getTokenBalance(),
-                            getAllowance(),
-                            getSlotPlayerStats(account).catch(() => null),
-                            getPlayerAllSpins(account).catch(() => [])
-                        ]);
-
-                        let spinsValue = 0;
-                        let winningsValue = 0;
-
-                        if (playerStats) {
-                            spinsValue = playerStats.totalSpins;
-                            winningsValue = parseFloat(playerStats.totalWinnings) / 1e18;
-                        } else if (allSpins && allSpins.length > 0) {
-                            spinsValue = allSpins.length;
-                            winningsValue = allSpins.reduce((sum, spin) => sum + parseFloat(spin.payout) / 1e18, 0);
-                        } else {
-                            // Fallback to RPC
-                            const [rpcSpins, rpcWinnings] = await Promise.all([
-                                getPlayerSpins(account),
-                                getPlayerWinnings(account)
-                            ]);
-                            spinsValue = rpcSpins;
-                            winningsValue = rpcWinnings;
-                        }
-
-                        setBalance(balanceValue);
-                        setAllowance(allowanceValue);
-                        setTotalSpins(spinsValue);
-                        setTotalWinnings(winningsValue);
-                        console.log('🎯 Refetched total spins after win:', spinsValue);
-                        console.log('🎯 Refetched total winnings after win:', winningsValue);
-                    } catch (error) {
-                        console.error('Error loading user data after win:', error);
-                    }
-                })();
+                refetchPlayerStats(account);
             }
         } else {
             // Record the spin
@@ -336,44 +299,7 @@ https://www.degenguessr.xyz`.trim();
 
             // Reload user data after no-win spin
             if (account) {
-                (async () => {
-                    try {
-                        const [balanceValue, allowanceValue, playerStats, allSpins] = await Promise.all([
-                            getTokenBalance(),
-                            getAllowance(),
-                            getSlotPlayerStats(account).catch(() => null),
-                            getPlayerAllSpins(account).catch(() => [])
-                        ]);
-
-                        let spinsValue = 0;
-                        let winningsValue = 0;
-
-                        if (playerStats) {
-                            spinsValue = playerStats.totalSpins;
-                            winningsValue = parseFloat(playerStats.totalWinnings) / 1e18;
-                        } else if (allSpins && allSpins.length > 0) {
-                            spinsValue = allSpins.length;
-                            winningsValue = allSpins.reduce((sum, spin) => sum + parseFloat(spin.payout) / 1e18, 0);
-                        } else {
-                            // Fallback to RPC
-                            const [rpcSpins, rpcWinnings] = await Promise.all([
-                                getPlayerSpins(account),
-                                getPlayerWinnings(account)
-                            ]);
-                            spinsValue = rpcSpins;
-                            winningsValue = rpcWinnings;
-                        }
-
-                        setBalance(balanceValue);
-                        setAllowance(allowanceValue);
-                        setTotalSpins(spinsValue);
-                        setTotalWinnings(winningsValue);
-                        console.log('🎯 Refetched total spins after no-win:', spinsValue);
-                        console.log('🎯 Refetched total winnings after no-win:', winningsValue);
-                    } catch (error) {
-                        console.error('Error loading user data after no-win:', error);
-                    }
-                })();
+                refetchPlayerStats(account);
             }
         }
     }, [triggerConfetti]);
@@ -403,6 +329,78 @@ https://www.degenguessr.xyz`.trim();
         onSpinResult,
         onError
     });
+
+    // Memoized function to refetch player stats after VRF result
+    // Includes delay for subgraph indexing lag
+    const refetchPlayerStats = useCallback(async (playerAccount: string) => {
+        try {
+            console.log('🔄 Refetching player stats for:', playerAccount);
+
+            // Wait for subgraph indexing lag (The Graph typically has 10-30s delay)
+            // Start with 3 seconds, retry up to 3 times with increasing delays
+            let attempt = 0;
+            const maxAttempts = 3;
+            let playerStats = null;
+            let allSpins: any[] = [];
+
+            while (attempt < maxAttempts) {
+                const delayMs = 3000 + (attempt * 2000); // 3s, 5s, 7s
+                console.log(`⏳ Waiting ${delayMs}ms for subgraph indexing (attempt ${attempt + 1}/${maxAttempts})...`);
+                await new Promise(resolve => setTimeout(resolve, delayMs));
+
+                try {
+                    [playerStats, allSpins] = await Promise.all([
+                        getSlotPlayerStats(playerAccount).catch(() => null),
+                        getPlayerAllSpins(playerAccount).catch(() => [])
+                    ]);
+
+                    // If we got data from subgraph, break out of retry loop
+                    if (playerStats || (allSpins && allSpins.length > 0)) {
+                        console.log(`✅ Subgraph data found on attempt ${attempt + 1}`);
+                        break;
+                    }
+                } catch (error) {
+                    console.log(`⚠️ Attempt ${attempt + 1} failed, retrying...`);
+                }
+
+                attempt++;
+            }
+
+            // Fetch balance and allowance immediately (these are on-chain reads)
+            const [balanceValue, allowanceValue] = await Promise.all([
+                getTokenBalance(),
+                getAllowance()
+            ]);
+
+            let spinsValue = 0;
+            let winningsValue = 0;
+
+            if (playerStats) {
+                spinsValue = playerStats.totalSpins;
+                winningsValue = parseFloat(playerStats.totalWinnings) / 1e18;
+            } else if (allSpins && allSpins.length > 0) {
+                spinsValue = allSpins.length;
+                winningsValue = allSpins.reduce((sum, spin) => sum + parseFloat(spin.payout) / 1e18, 0);
+            } else {
+                // Fallback to RPC if subgraph completely fails
+                console.log('📊 Subgraph unavailable, falling back to RPC...');
+                const [rpcSpins, rpcWinnings] = await Promise.all([
+                    getPlayerSpins(playerAccount),
+                    getPlayerWinnings(playerAccount)
+                ]);
+                spinsValue = rpcSpins;
+                winningsValue = rpcWinnings;
+            }
+
+            setBalance(balanceValue);
+            setAllowance(allowanceValue);
+            setTotalSpins(spinsValue);
+            setTotalWinnings(winningsValue);
+            console.log('✅ Refetched player stats - Spins:', spinsValue, 'Winnings:', winningsValue);
+        } catch (error) {
+            console.error('❌ Error refetching player stats:', error);
+        }
+    }, [getTokenBalance, getAllowance, getPlayerSpins, getPlayerWinnings]);
 
     // Load public data (pot, treasury, game constants)
     const loadPublicData = async () => {
