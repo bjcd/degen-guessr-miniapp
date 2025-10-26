@@ -74,6 +74,7 @@ const Index = () => {
     const [winnersToShow, setWinnersToShow] = useState(5);
     const [leaderboard] = useState<LeaderboardEntry[]>([]);
     const [countdown, setCountdown] = useState(isFarcasterEnvironment ? 12 : 10);
+    const [lastWinAmount, setLastWinAmount] = useState<number | null>(null);
 
     const { triggerConfetti } = useConfetti();
 
@@ -242,6 +243,9 @@ const Index = () => {
                 timestamp: new Date(),
             };
             setLastSpins([newSpin, ...lastSpins.slice(0, 4)]);
+
+            // Set state to show share button
+            setLastWinAmount(winAmount);
 
             // Set status messages based on category
             if (category === "JACKPOT") {
@@ -570,6 +574,7 @@ const Index = () => {
         spinningRef.current = true;
         setJackpotText("SPINNING...");
         setFinalReels([]); // Clear final reels
+        setLastWinAmount(null); // Clear share button
 
         const success = await spin();
         if (!success) {
@@ -797,6 +802,16 @@ const Index = () => {
                                         <Zap className="w-6 h-6" />
                                         {isLoading ? "APPROVING..." : `APPROVE ${gameConstants.costPerSpin} $DEGEN`}
                                         <Zap className="w-6 h-6" />
+                                    </Button>
+                                )}
+
+                                {/* Share Win Button */}
+                                {lastWinAmount !== null && isFarcasterEnvironment && (
+                                    <Button
+                                        onClick={() => shareWinOnFarcaster(lastWinAmount)}
+                                        className="w-full h-16 md:h-20 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-400 hover:to-red-400 text-white font-black text-lg md:text-xl transition-all duration-300 neon-button rounded-2xl flex items-center justify-center gap-2 animate-pulse"
+                                    >
+                                        🎩 YOU WON, SHARE THE NEWS 🔥
                                     </Button>
                                 )}
 
