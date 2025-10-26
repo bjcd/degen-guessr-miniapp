@@ -1,6 +1,7 @@
 import { BigInt, Bytes } from "@graphprotocol/graph-ts"
 import { Win } from "../generated/DegenGuessr/DegenGuessr"
-import { Win as WinEntity, GameStats } from "../generated/schema"
+import { SpinResult as SpinResultEvent } from "../generated/DegenSlot/DegenSlot"
+import { Win as WinEntity, GameStats, SpinResult, SlotPlayerStats, SlotGameStats } from "../generated/schema"
 
 export function handleWin(event: Win): void {
     // Create unique ID from transaction hash and log index
@@ -40,4 +41,50 @@ export function handleWin(event: Win): void {
     stats.totalPot = stats.totalPot.plus(event.params.amount)
     stats.lastUpdated = event.block.timestamp
     stats.save()
+}
+
+export function handleSpinResult(event: SpinResultEvent): void {
+    // Create unique ID from transaction hash and log index
+    let id = event.transaction.hash.toHexString() + "-" + event.logIndex.toString()
+
+    // Create SpinResult entity
+    let spinResult = new SpinResult(id)
+    spinResult.tx = event.transaction.hash
+    spinResult.block = event.block.number
+    spinResult.timestamp = event.block.timestamp
+    spinResult.player = event.params.player
+    spinResult.roll = event.params.roll
+    spinResult.category = event.params.category
+    spinResult.payout = event.params.payout
+    spinResult.potAfter = event.params.potAfter
+    spinResult.save()
+
+    // Update player stats
+    let playerId = event.params.player.toHexString()
+    let playerStats = SlotPlayerStats.load(playerId)
+    if (playerStats == null) {
+        playerStats = new SlotPlayerStats(playerId)
+        playerStats.address = event.params.player
+        playerStats.totalSpins = 0
+        playerStats.totalWinnings = BigInt.fromI32(0)
+    }
+
+    playerStats.totalSpins = playerStats.totalSpins + 1
+    playerStats.totalWinnings = playerStats.totalWinnings.plus(event.params.payout)
+    playerStats.lastUpdated = event.block.timestamp
+    playerStats.save()
+
+    // Update slot game stats
+    let slotStatsId = "slot-game-stats"
+    let slotStats = SlotGameStats.load(slotStatsId)
+    if (slotStats == null) {
+        slotStats = new SlotGameStats(slotStatsId)
+        slotStats.totalSpins = 0
+        slotStats.totalPot = BigInt.fromI32(0)
+    }
+
+    slotStats.totalSpins = slotStats.totalSpins + 1
+    slotStats.totalPot = event.params.potAfter
+    slotStats.lastUpdated = event.block.timestamp
+    slotStats.save()
 }

@@ -17,3 +17,30 @@ type GameStats @entity(immutable: false) {
   totalPot: BigInt!
   lastUpdated: BigInt!
 }
+
+type SpinResult @entity(immutable: true) {
+  id: ID! # transaction hash + log index
+  tx: Bytes!
+  block: BigInt!
+  timestamp: BigInt!
+  player: Bytes!
+  roll: BigInt!
+  category: Int!
+  payout: BigInt!
+  potAfter: BigInt!
+}
+
+type SlotPlayerStats @entity(immutable: false) {
+  id: ID! # player address
+  address: Bytes!
+  totalSpins: Int!
+  totalWinnings: BigInt!
+  lastUpdated: BigInt!
+}
+
+type SlotGameStats @entity(immutable: false) {
+  id: ID! # "slot-game-stats"
+  totalSpins: Int!
+  totalPot: BigInt!
+  lastUpdated: BigInt!
+}

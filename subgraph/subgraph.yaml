@@ -44,3 +44,25 @@ dataSources:
         - event: Win(indexed address,uint8,uint8,uint256)
           handler: handleWin
       file: ./src/mapping.ts
+  - kind: ethereum
+    name: DegenSlot
+    network: base
+    source:
+      address: "0x6285b23b5CbDD84187B15cC1aC23cFC5F659Ac21"
+      abi: DegenSlot
+      startBlock: 37150000
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - SpinResult
+        - SlotPlayerStats
+        - SlotGameStats
+      abis:
+        - name: DegenSlot
+          file: ./abis/DegenSlot.json
+      eventHandlers:
+        - event: SpinResult(indexed address,uint16,uint8,uint256,uint256)
+          handler: handleSpinResult
+      file: ./src/mapping.ts
