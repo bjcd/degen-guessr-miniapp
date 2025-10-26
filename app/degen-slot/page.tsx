@@ -86,7 +86,11 @@ const Index = () => {
         }
 
         try {
-            const message = `I just won ${Math.floor(winAmount)} $DEGEN on Mega Degen 🎩 🥳\n\nWho's next?\n\nwww.degenguessr.xyz`;
+            const message = `I just won ${Math.floor(winAmount)} $DEGEN on Mega Degen 🎩 🥳
+
+Who's next?
+
+https://www.degenguessr.xyz`;
 
             console.log('🎩 Sharing win on Farcaster:', message);
 
