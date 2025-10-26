@@ -72,7 +72,7 @@ const Index = () => {
     const [winners, setWinners] = useState<Winner[]>([]);
     const [winnersToShow, setWinnersToShow] = useState(5);
     const [leaderboard] = useState<LeaderboardEntry[]>([]);
-    const [countdown, setCountdown] = useState(isFarcasterEnvironment ? 3 : 10);
+    const [countdown, setCountdown] = useState(isFarcasterEnvironment ? 12 : 10);
 
     const { triggerConfetti } = useConfetti();
 
@@ -205,15 +205,15 @@ const Index = () => {
 
         const winAmount = Number(payout);
         if (winAmount > 0) {
-        // Record the spin
-        const newSpin: SpinResult = {
-            id: Date.now(),
+            // Record the spin
+            const newSpin: SpinResult = {
+                id: Date.now(),
                 reels: newReels,
                 won: true,
-            amount: winAmount,
-            timestamp: new Date(),
-        };
-        setLastSpins([newSpin, ...lastSpins.slice(0, 4)]);
+                amount: winAmount,
+                timestamp: new Date(),
+            };
+            setLastSpins([newSpin, ...lastSpins.slice(0, 4)]);
 
             // Set status messages based on category
             if (category === "JACKPOT") {
@@ -397,13 +397,13 @@ const Index = () => {
     // Countdown on page load for Farcaster initialization (only once)
     useEffect(() => {
         console.log('🎯 Starting countdown timer - initial countdown value:', countdown);
-        
+
         let currentCount = countdown;
         const interval = setInterval(() => {
             currentCount--;
             console.log('🎯 Setting countdown to:', currentCount);
             setCountdown(currentCount);
-            
+
             if (currentCount <= 0) {
                 console.log('🎯 Countdown complete! Button should be enabled now.');
                 clearInterval(interval);
@@ -777,21 +777,21 @@ const Index = () => {
                                     </Button>
                                 )}
 
-                        {/* Spin Button */}
-                        <Button
-                            onClick={handleSpin}
+                                {/* Spin Button */}
+                                <Button
+                                    onClick={handleSpin}
                                     disabled={countdown > 0 || spinning || isLoading}
-                            className="w-full h-16 md:h-20 bg-gradient-to-r from-primary to-secondary hover:from-primary-glow hover:to-secondary-glow text-white font-black text-xl md:text-2xl transition-all duration-300 neon-button rounded-2xl flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
+                                    className="w-full h-16 md:h-20 bg-gradient-to-r from-primary to-secondary hover:from-primary-glow hover:to-secondary-glow text-white font-black text-xl md:text-2xl transition-all duration-300 neon-button rounded-2xl flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
                                     <Image src="/degen-logo.png" alt="Hat" width={32} height={32} className="object-contain" />
-                            <Zap className="w-6 h-6" />
+                                    <Zap className="w-6 h-6" />
                                     {spinning
                                         ? "SPINNING..."
                                         : countdown > 0
                                             ? `PLAY IN ${countdown}...`
                                             : `SPIN FOR ${gameConstants.costPerSpin} $DEGEN`}
-                            <Zap className="w-6 h-6" />
-                        </Button>
+                                    <Zap className="w-6 h-6" />
+                                </Button>
                             </>
                         )}
 
@@ -867,7 +867,7 @@ const Index = () => {
                                 <div className="text-center space-y-2">
                                     <h3 className="text-xl font-bold text-foreground">Pre-approve to spin faster</h3>
                                     <p className="text-sm text-muted-foreground">Your allowance is {allowance.toFixed(0)} DEGEN</p>
-                            </div>
+                                </div>
 
                                 <div className="grid grid-cols-3 gap-3">
                                     <Button
@@ -893,8 +893,8 @@ const Index = () => {
                                     >
                                         Revoke
                                     </Button>
-                            </div>
-                        </Card>
+                                </div>
+                            </Card>
                         )}
 
                         {/* Last Winners */}
@@ -913,11 +913,11 @@ const Index = () => {
                                 ) : (
                                     <>
                                         {winners.slice(0, winnersToShow).map((winner, index) => (
-                                    <div
-                                        key={winner.id}
-                                        className="p-4 bg-gradient-to-r from-primary/10 to-secondary/10 rounded-lg border border-primary/30 hover:border-primary/50 transition-colors"
-                                    >
-                                        <div className="flex items-center justify-between mb-2">
+                                            <div
+                                                key={winner.id}
+                                                className="p-4 bg-gradient-to-r from-primary/10 to-secondary/10 rounded-lg border border-primary/30 hover:border-primary/50 transition-colors"
+                                            >
+                                                <div className="flex items-center justify-between mb-2">
                                                     <div className="flex items-center gap-2">
                                                         {winner.farcasterProfile ? (
                                                             <>
@@ -960,7 +960,7 @@ const Index = () => {
                                                         )}
                                                     </div>
                                                     <Trophy className={`w-4 h-4 ${index === 0 ? 'text-yellow-400 animate-pulse' : 'text-primary'}`} />
-                                        </div>
+                                                </div>
                                                 <div className="flex items-center justify-between mb-2">
                                                     {winner.txHash ? (
                                                         <a
@@ -972,16 +972,16 @@ const Index = () => {
                                                             View TX
                                                         </a>
                                                     ) : (
-                                            <span className="text-xs text-muted-foreground">
+                                                        <span className="text-xs text-muted-foreground">
                                                             {winner.timestamp.toLocaleTimeString()}
                                                         </span>
                                                     )}
                                                     <span className="text-lg font-black text-primary">
                                                         {winner.amount % 1 === 0 ? winner.amount.toString() : winner.amount.toFixed(2)} $DEGEN
-                                            </span>
-                                        </div>
-                                    </div>
-                                ))}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        ))}
                                         {winnersToShow < winners.length && (
                                             <div className="flex justify-center mt-4">
                                                 <button
