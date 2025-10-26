@@ -369,18 +369,18 @@ https://www.degenguessr.xyz`.trim();
 
             // Use RPC to get ALL spins (including latest) - this is our source of truth
             // With retry logic for transient RPC failures
-            let rpcSpins = totalSpins;
-            let rpcWinnings = totalWinnings;
+            let rpcSpins: number | null = null;
+            let rpcWinnings: number | null = null;
             let retries = 0;
             const maxRetries = 3;
-            
+
             while (retries < maxRetries) {
                 try {
                     const [spins, winnings] = await Promise.all([
                         getPlayerSpins(playerAccount),
                         getPlayerWinnings(playerAccount)
                     ]);
-                    
+
                     // Only update if we got valid numbers
                     if (spins >= 0 && winnings >= 0) {
                         rpcSpins = spins;
@@ -400,8 +400,13 @@ https://www.degenguessr.xyz`.trim();
                 }
             }
 
-            setTotalSpins(rpcSpins);
-            setTotalWinnings(rpcWinnings);
+            // Only update state if we got valid data
+            if (rpcSpins !== null && rpcWinnings !== null) {
+                setTotalSpins(rpcSpins);
+                setTotalWinnings(rpcWinnings);
+            } else {
+                console.log('⚠️ No valid RPC data obtained, keeping current values - Spins:', totalSpins, 'Winnings:', totalWinnings);
+            }
         } catch (error) {
             console.error('❌ Error refetching player stats:', error);
         }
