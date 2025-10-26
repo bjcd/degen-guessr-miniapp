@@ -248,7 +248,7 @@ export class GameStats extends Entity {
   }
 }
 
-export class SlotWin extends Entity {
+export class SpinResult extends Entity {
   constructor(id: string) {
     super();
     this.set("id", Value.fromString(id));
@@ -256,22 +256,22 @@ export class SlotWin extends Entity {
 
   save(): void {
     let id = this.get("id");
-    assert(id != null, "Cannot save SlotWin entity without an ID");
+    assert(id != null, "Cannot save SpinResult entity without an ID");
     if (id) {
       assert(
         id.kind == ValueKind.STRING,
-        `Entities of type SlotWin must have an ID of type String but the id '${id.displayData()}' is of type ${id.displayKind()}`,
+        `Entities of type SpinResult must have an ID of type String but the id '${id.displayData()}' is of type ${id.displayKind()}`,
       );
-      store.set("SlotWin", id.toString(), this);
+      store.set("SpinResult", id.toString(), this);
     }
   }
 
-  static loadInBlock(id: string): SlotWin | null {
-    return changetype<SlotWin | null>(store.get_in_block("SlotWin", id));
+  static loadInBlock(id: string): SpinResult | null {
+    return changetype<SpinResult | null>(store.get_in_block("SpinResult", id));
   }
 
-  static load(id: string): SlotWin | null {
-    return changetype<SlotWin | null>(store.get("SlotWin", id));
+  static load(id: string): SpinResult | null {
+    return changetype<SpinResult | null>(store.get("SpinResult", id));
   }
 
   get id(): string {
@@ -339,30 +339,30 @@ export class SlotWin extends Entity {
     this.set("player", Value.fromBytes(value));
   }
 
-  get roll(): i32 {
+  get roll(): BigInt {
     let value = this.get("roll");
     if (!value || value.kind == ValueKind.NULL) {
-      return 0;
+      throw new Error("Cannot return null for a required field.");
     } else {
-      return value.toI32();
+      return value.toBigInt();
     }
   }
 
-  set roll(value: i32) {
-    this.set("roll", Value.fromI32(value));
+  set roll(value: BigInt) {
+    this.set("roll", Value.fromBigInt(value));
   }
 
-  get category(): i32 {
+  get category(): BigInt {
     let value = this.get("category");
     if (!value || value.kind == ValueKind.NULL) {
-      return 0;
+      throw new Error("Cannot return null for a required field.");
     } else {
-      return value.toI32();
+      return value.toBigInt();
     }
   }
 
-  set category(value: i32) {
-    this.set("category", Value.fromI32(value));
+  set category(value: BigInt) {
+    this.set("category", Value.fromBigInt(value));
   }
 
   get payout(): BigInt {
@@ -431,6 +431,19 @@ export class SlotPlayerStats extends Entity {
 
   set id(value: string) {
     this.set("id", Value.fromString(value));
+  }
+
+  get address(): Bytes {
+    let value = this.get("address");
+    if (!value || value.kind == ValueKind.NULL) {
+      throw new Error("Cannot return null for a required field.");
+    } else {
+      return value.toBytes();
+    }
+  }
+
+  set address(value: Bytes) {
+    this.set("address", Value.fromBytes(value));
   }
 
   get totalSpins(): i32 {

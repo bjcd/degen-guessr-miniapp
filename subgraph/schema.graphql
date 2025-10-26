@@ -25,7 +25,7 @@ type SpinResult @entity(immutable: true) {
   timestamp: BigInt!
   player: Bytes!
   roll: BigInt!
-  category: Int!
+  category: BigInt!
   payout: BigInt!
   potAfter: BigInt!
 }

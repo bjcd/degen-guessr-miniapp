@@ -53,8 +53,8 @@ export function handleSpinResult(event: SpinResultEvent): void {
     spinResult.block = event.block.number
     spinResult.timestamp = event.block.timestamp
     spinResult.player = event.params.player
-    spinResult.roll = event.params.roll
-    spinResult.category = event.params.category
+    spinResult.roll = BigInt.fromI32(event.params.roll)
+    spinResult.category = BigInt.fromI32(event.params.category)
     spinResult.payout = event.params.payout
     spinResult.potAfter = event.params.potAfter
     spinResult.save()
