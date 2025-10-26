@@ -76,6 +76,13 @@ const Index = () => {
 
     const { triggerConfetti } = useConfetti();
 
+    // Initialize countdown to its starting value on mount
+    useEffect(() => {
+        const initialValue = isFarcasterEnvironment ? 12 : 10;
+        setCountdown(initialValue);
+        console.log('🎯 Initialized countdown to:', initialValue, '(Farcaster:', isFarcasterEnvironment, ')');
+    }, [isFarcasterEnvironment]);
+
     // Function to fetch winners' Farcaster profiles
     const fetchWinnerProfiles = async (winnersToFetch: Winner[]): Promise<Winner[]> => {
         return await Promise.all(winnersToFetch.map(async (winner) => {
@@ -394,9 +401,14 @@ const Index = () => {
         loadPublicData();
     }, []);
 
-    // Countdown on page load for Farcaster initialization (only once)
+    // Countdown starts AFTER wallet connection, not at page load
     useEffect(() => {
-        console.log('🎯 Starting countdown timer - initial countdown value:', countdown);
+        if (!account) {
+            console.log('🎯 No account yet, countdown not started');
+            return;
+        }
+
+        console.log('🎯 Wallet connected! Starting countdown timer - initial countdown value:', countdown);
 
         let currentCount = countdown;
         const interval = setInterval(() => {
@@ -414,7 +426,7 @@ const Index = () => {
             console.log('🎯 Cleaning up countdown timer');
             clearInterval(interval);
         };
-    }, []); // Only run once on mount
+    }, [account]); // Depends on account - starts when wallet connects
 
     useEffect(() => {
         if (account) {
