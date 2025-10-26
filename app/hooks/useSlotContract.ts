@@ -477,16 +477,7 @@ export function useSlotContract(callbacks?: SlotContractCallbacks) {
                 return false;
             }
 
-            // Simulate the transaction first to catch potential failures
-            console.log('Simulating transaction...');
-            try {
-                await (contract.connect(signer) as any).spin.staticCall();
-                console.log('✅ Transaction simulation successful');
-            } catch (simulationError: any) {
-                console.error('❌ Transaction simulation failed:', simulationError);
-                throw new Error(`Transaction would fail: ${simulationError.message || simulationError.reason || 'Unknown error'}`);
-            }
-
+            // Skip simulation on Farcaster wallet (RPC doesn't support static calls properly)
             // Make the spin with manual gas limit (Farcaster-compatible)
             console.log('Sending spin transaction...');
             const tx = await contract.spin({
@@ -514,14 +505,7 @@ export function useSlotContract(callbacks?: SlotContractCallbacks) {
                     console.log('No transaction logs found - this suggests a revert');
                 }
 
-                // Try to get the revert reason by calling the transaction again
-                try {
-                    console.log('Attempting to get revert reason...');
-                    await (contract.connect(signer) as any).spin.staticCall();
-                } catch (revertError: any) {
-                    console.log('Revert reason:', revertError.message || revertError.reason);
-                    errorMessage += ` - Revert reason: ${revertError.message || revertError.reason || 'Unknown'}`;
-                }
+                // Skip revert reason detection (Farcaster wallet RPC doesn't support static calls)
 
                 // Try to get the transaction details
                 try {
