@@ -345,15 +345,19 @@ https://www.degenguessr.xyz`.trim();
     });
 
     // Memoized function to refetch player stats after VRF result
-    // Uses RPC as source of truth (instant, accurate) and skips subgraph wait
+    // Hybrid approach: RPC for latest spin data (instant) + subgraph for historical (fallback)
     const refetchPlayerStats = useCallback(async (playerAccount: string) => {
         try {
             console.log('🔄 Refetching player stats for:', playerAccount);
             
-            // Fetch balance, allowance, and spins/winnings from RPC immediately (no delay needed)
-            const [balanceValue, allowanceValue, rpcSpins, rpcWinnings] = await Promise.all([
+            // Fetch balance and allowance immediately from RPC
+            const [balanceValue, allowanceValue] = await Promise.all([
                 getTokenBalance(),
-                getAllowance(),
+                getAllowance()
+            ]);
+
+            // Use RPC to get ALL spins (including latest) - this is our source of truth
+            const [rpcSpins, rpcWinnings] = await Promise.all([
                 getPlayerSpins(playerAccount),
                 getPlayerWinnings(playerAccount)
             ]);
