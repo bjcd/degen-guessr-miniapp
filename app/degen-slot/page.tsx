@@ -72,6 +72,7 @@ const Index = () => {
     const [winners, setWinners] = useState<Winner[]>([]);
     const [winnersToShow, setWinnersToShow] = useState(5);
     const [leaderboard] = useState<LeaderboardEntry[]>([]);
+    const [countdown, setCountdown] = useState(10);
 
     const { triggerConfetti } = useConfetti();
 
@@ -391,6 +392,26 @@ const Index = () => {
     // Load data on mount and when account changes
     useEffect(() => {
         loadPublicData();
+    }, []);
+
+    // Countdown on page load for Farcaster initialization
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setCountdown((prev) => {
+                if (prev <= 0) return 0;
+                return prev - 1;
+            });
+        }, 1000);
+
+        // Clear interval after 10 seconds
+        const timeout = setTimeout(() => {
+            clearInterval(interval);
+        }, 10000);
+
+        return () => {
+            clearInterval(interval);
+            clearTimeout(timeout);
+        };
     }, []);
 
     useEffect(() => {
@@ -757,12 +778,16 @@ const Index = () => {
                                 {/* Spin Button */}
                                 <Button
                                     onClick={handleSpin}
-                                    disabled={spinning || isLoading || allowance < 100 || balance < gameConstants.costPerSpin}
+                                    disabled={countdown > 0 || spinning || isLoading}
                                     className="w-full h-16 md:h-20 bg-gradient-to-r from-primary to-secondary hover:from-primary-glow hover:to-secondary-glow text-white font-black text-xl md:text-2xl transition-all duration-300 neon-button rounded-2xl flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     <Image src="/degen-logo.png" alt="Hat" width={32} height={32} className="object-contain" />
                                     <Zap className="w-6 h-6" />
-                                    {spinning ? "SPINNING..." : `SPIN FOR ${gameConstants.costPerSpin} $DEGEN`}
+                                    {spinning 
+                                        ? "SPINNING..." 
+                                        : countdown > 0 
+                                            ? `PLAY IN ${countdown}...` 
+                                            : `SPIN FOR ${gameConstants.costPerSpin} $DEGEN`}
                                     <Zap className="w-6 h-6" />
                                 </Button>
                             </>

@@ -451,7 +451,7 @@ export default function Home() {
         // Mark dialog as shown in session storage
         sessionStorage.setItem('degen-guessr-mode-dialog-shown', 'true');
         setShowModeDialog(false);
-        
+
         if (mode === 'mega-degen') {
             // Navigate to Mega Degen slot machine page
             window.location.href = '/degen-slot';
