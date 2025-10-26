@@ -90,7 +90,7 @@ const Index = () => {
 
 Who's next?
 
-https://www.degenguessr.xyz`;
+https://www.degenguessr.xyz`.trim();
 
             console.log('🎩 Sharing win on Farcaster:', message);
 
