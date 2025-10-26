@@ -349,28 +349,63 @@ https://www.degenguessr.xyz`.trim();
     const refetchPlayerStats = useCallback(async (playerAccount: string) => {
         try {
             console.log('🔄 Refetching player stats for:', playerAccount);
-            
+
             // Fetch balance and allowance immediately from RPC
-            const [balanceValue, allowanceValue] = await Promise.all([
-                getTokenBalance(),
-                getAllowance()
-            ]);
+            let balanceValue = balance;
+            let allowanceValue = allowance;
+            try {
+                const [bVal, aVal] = await Promise.all([
+                    getTokenBalance(),
+                    getAllowance()
+                ]);
+                balanceValue = bVal;
+                allowanceValue = aVal;
+                setBalance(balanceValue);
+                setAllowance(allowanceValue);
+            } catch (err) {
+                console.warn('⚠️ Warning fetching balance/allowance:', err);
+                // Keep previous values
+            }
 
             // Use RPC to get ALL spins (including latest) - this is our source of truth
-            const [rpcSpins, rpcWinnings] = await Promise.all([
-                getPlayerSpins(playerAccount),
-                getPlayerWinnings(playerAccount)
-            ]);
+            // With retry logic for transient RPC failures
+            let rpcSpins = totalSpins;
+            let rpcWinnings = totalWinnings;
+            let retries = 0;
+            const maxRetries = 3;
+            
+            while (retries < maxRetries) {
+                try {
+                    const [spins, winnings] = await Promise.all([
+                        getPlayerSpins(playerAccount),
+                        getPlayerWinnings(playerAccount)
+                    ]);
+                    
+                    // Only update if we got valid numbers
+                    if (spins >= 0 && winnings >= 0) {
+                        rpcSpins = spins;
+                        rpcWinnings = winnings;
+                        console.log('✅ Refetched player stats from RPC - Spins:', rpcSpins, 'Winnings:', rpcWinnings);
+                        break;
+                    }
+                } catch (err) {
+                    retries++;
+                    if (retries < maxRetries) {
+                        const delay = Math.pow(2, retries) * 500; // Exponential backoff: 1s, 2s, 4s
+                        console.warn(`⚠️ RPC fetch attempt ${retries} failed, retrying in ${delay}ms...`, err);
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                    } else {
+                        console.warn('❌ RPC fetch failed after max retries, keeping previous values:', err);
+                    }
+                }
+            }
 
-            setBalance(balanceValue);
-            setAllowance(allowanceValue);
             setTotalSpins(rpcSpins);
             setTotalWinnings(rpcWinnings);
-            console.log('✅ Refetched player stats from RPC - Spins:', rpcSpins, 'Winnings:', rpcWinnings);
         } catch (error) {
             console.error('❌ Error refetching player stats:', error);
         }
-    }, [getTokenBalance, getAllowance, getPlayerSpins, getPlayerWinnings]);
+    }, [getTokenBalance, getAllowance, getPlayerSpins, getPlayerWinnings, balance, allowance, totalSpins, totalWinnings]);
 
     // Assign refetchPlayerStats to the ref so onSpinResult can call it
     useEffect(() => {
