@@ -447,11 +447,15 @@ export default function Home() {
         }
     };
 
-    const handleModeSelection = (mode: 'degen' | 'super-degen') => {
+    const handleModeSelection = (mode: 'mega-degen' | 'degen' | 'super-degen') => {
         // Mark dialog as shown in session storage
         sessionStorage.setItem('degen-guessr-mode-dialog-shown', 'true');
         setShowModeDialog(false);
-        if (mode === 'super-degen') {
+        
+        if (mode === 'mega-degen') {
+            // Navigate to Mega Degen slot machine page
+            window.location.href = '/degen-slot';
+        } else if (mode === 'super-degen') {
             // Navigate to super degen page
             window.location.href = '/super-degen';
         }
