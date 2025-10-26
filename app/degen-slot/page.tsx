@@ -309,6 +309,8 @@ const Index = () => {
                         setAllowance(allowanceValue);
                         setTotalSpins(spinsValue);
                         setTotalWinnings(winningsValue);
+                        console.log('🎯 Refetched total spins after win:', spinsValue);
+                        console.log('🎯 Refetched total winnings after win:', winningsValue);
                     } catch (error) {
                         console.error('Error loading user data after win:', error);
                     }
@@ -362,13 +364,15 @@ const Index = () => {
                         setAllowance(allowanceValue);
                         setTotalSpins(spinsValue);
                         setTotalWinnings(winningsValue);
+                        console.log('🎯 Refetched total spins after no-win:', spinsValue);
+                        console.log('🎯 Refetched total winnings after no-win:', winningsValue);
                     } catch (error) {
                         console.error('Error loading user data after no-win:', error);
                     }
                 })();
             }
         }
-    }, [triggerConfetti, lastSpins]);
+    }, [triggerConfetti]);
 
     const onError = useCallback((message: string) => {
         setLoadingMessage(message);
