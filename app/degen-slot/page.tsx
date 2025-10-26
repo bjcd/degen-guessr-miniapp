@@ -10,6 +10,7 @@ import { useSlotContract } from "../hooks/useSlotContract";
 import { useConfetti } from "../hooks/useConfetti";
 import { useFarcaster } from "../farcaster-provider";
 import { fetchFarcasterProfile, FarcasterProfile, setCurrentUserProfile } from "../lib/farcaster-profiles";
+import { getRecentSlotWinners, getSlotPlayerStats, type SpinResult as GraphSpinResult } from "../lib/graphql-slot";
 
 interface SpinResult {
     id: number;
@@ -20,10 +21,12 @@ interface SpinResult {
 }
 
 interface Winner {
-    id: number;
+    id: string;
     address: string;
     amount: number;
     timestamp: Date;
+    txHash: string;
+    farcasterProfile?: FarcasterProfile;
 }
 
 interface LeaderboardEntry {
@@ -66,10 +69,27 @@ const Index = () => {
         jackpotShareBps: 5000
     });
 
-    const [winners] = useState<Winner[]>([]);
+    const [winners, setWinners] = useState<Winner[]>([]);
+    const [winnersToShow, setWinnersToShow] = useState(5);
     const [leaderboard] = useState<LeaderboardEntry[]>([]);
 
     const { triggerConfetti } = useConfetti();
+
+    // Function to fetch winners' Farcaster profiles
+    const fetchWinnerProfiles = async (winnersToFetch: Winner[]): Promise<Winner[]> => {
+        return await Promise.all(winnersToFetch.map(async (winner) => {
+            try {
+                const profile = await fetchFarcasterProfile(winner.address);
+                return {
+                    ...winner,
+                    farcasterProfile: profile || undefined
+                };
+            } catch (error) {
+                console.error('Error fetching winner profile:', error);
+                return winner;
+            }
+        }));
+    };
 
     // Function to fetch current user's Farcaster profile
     const fetchCurrentUserProfile = async (walletAddress: string) => {
@@ -339,15 +359,30 @@ const Index = () => {
     // Load public data (pot, treasury, game constants)
     const loadPublicData = async () => {
         try {
-            const [potValue, constants, payoutsData] = await Promise.all([
+            const [potValue, constants, payoutsData, graphWinners] = await Promise.all([
                 getPot(),
                 fetchGameConstants(),
-                fetchPayouts()
+                fetchPayouts(),
+                getRecentSlotWinners(20).catch(() => [])
             ]);
 
             setPot(potValue);
             setGameConstants(constants);
             setPayouts(payoutsData);
+
+            // Convert GraphQL winners to our format
+            if (graphWinners.length > 0) {
+                const formattedWinners: Winner[] = graphWinners.map((winner: GraphSpinResult) => ({
+                    id: winner.id,
+                    address: winner.player,
+                    amount: parseFloat(winner.payout) / 1e18,
+                    timestamp: new Date(parseInt(winner.timestamp) * 1000),
+                    txHash: winner.tx
+                }));
+
+                const winnersWithProfiles = await fetchWinnerProfiles(formattedWinners);
+                setWinners(winnersWithProfiles);
+            }
         } catch (error) {
             console.error('Error loading public data:', error);
         }
@@ -377,12 +412,27 @@ const Index = () => {
                         console.log('🎯 Loaded cached stats:', { cachedSpins, cachedWinnings });
                     }
 
-                    const [balanceValue, allowanceValue, spinsValue, winningsValue] = await Promise.all([
+                    const [balanceValue, allowanceValue, playerStats] = await Promise.all([
                         getTokenBalance(),
                         getAllowance(),
-                        getPlayerSpins(account).catch(() => cachedSpins),
-                        getPlayerWinnings(account).catch(() => cachedWinnings)
+                        getSlotPlayerStats(account).catch(() => null)
                     ]);
+
+                    let spinsValue = cachedSpins;
+                    let winningsValue = cachedWinnings;
+
+                    if (playerStats) {
+                        spinsValue = playerStats.totalSpins;
+                        winningsValue = parseFloat(playerStats.totalWinnings) / 1e18;
+                    } else {
+                        // Fallback to RPC if subgraph fails
+                        const [rpcSpins, rpcWinnings] = await Promise.all([
+                            getPlayerSpins(account).catch(() => cachedSpins),
+                            getPlayerWinnings(account).catch(() => cachedWinnings)
+                        ]);
+                        spinsValue = rpcSpins;
+                        winningsValue = rpcWinnings;
+                    }
 
                     console.log('🎯 User data loaded:', { balanceValue, allowanceValue, spinsValue, winningsValue });
                     setBalance(balanceValue);
@@ -819,6 +869,106 @@ const Index = () => {
                                 </div>
                             </Card>
                         )}
+
+                        {/* Last Winners */}
+                        <Card className="glass-card gradient-border p-5">
+                            <div className="flex items-center gap-2 mb-4">
+                                <Trophy className="w-5 h-5 text-secondary" />
+                                <h2 className="text-lg font-black text-foreground">LAST WINNERS</h2>
+                            </div>
+                            <div className="space-y-3">
+                                {winners.length === 0 ? (
+                                    <div className="p-6 text-center bg-muted/20 rounded-lg border border-primary/10">
+                                        <Trophy className="w-8 h-8 text-muted-foreground mx-auto mb-2 opacity-50" />
+                                        <p className="text-sm text-muted-foreground">No winners yet!</p>
+                                        <p className="text-xs text-muted-foreground/70 mt-1">Be the first to hit the jackpot 🎩</p>
+                                    </div>
+                                ) : (
+                                    <>
+                                        {winners.slice(0, winnersToShow).map((winner, index) => (
+                                            <div
+                                                key={winner.id}
+                                                className="p-4 bg-gradient-to-r from-primary/10 to-secondary/10 rounded-lg border border-primary/30 hover:border-primary/50 transition-colors"
+                                            >
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <div className="flex items-center gap-2">
+                                                        {winner.farcasterProfile ? (
+                                                            <>
+                                                                <div className="relative">
+                                                                    <Image
+                                                                        src={winner.farcasterProfile.pfpUrl}
+                                                                        alt={winner.farcasterProfile.displayName}
+                                                                        width={24}
+                                                                        height={24}
+                                                                        className="w-6 h-6 rounded-full border border-primary/20"
+                                                                        onError={(e) => {
+                                                                            console.log('Failed to load profile image for:', winner.farcasterProfile?.displayName);
+                                                                            // Fallback to a default avatar
+                                                                            (e.target as HTMLImageElement).src = 'https://via.placeholder.com/24x24/6366f1/ffffff?text=' + (winner.farcasterProfile?.displayName?.charAt(0) || '?');
+                                                                        }}
+                                                                    />
+                                                                </div>
+                                                                <div className="flex flex-col">
+                                                                    <span className="text-sm font-bold text-foreground">
+                                                                        {winner.farcasterProfile.displayName}
+                                                                    </span>
+                                                                    {winner.farcasterProfile.fid > 0 && (
+                                                                        <span className="text-xs text-muted-foreground">
+                                                                            @{winner.farcasterProfile.username}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            </>
+                                                        ) : (
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center">
+                                                                    <span className="text-xs font-bold text-muted-foreground">
+                                                                        {winner.address.slice(2, 4).toUpperCase()}
+                                                                    </span>
+                                                                </div>
+                                                                <span className="text-sm font-bold text-foreground font-mono">
+                                                                    {winner.address.slice(0, 6)}...{winner.address.slice(-4)}
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <Trophy className={`w-4 h-4 ${index === 0 ? 'text-yellow-400 animate-pulse' : 'text-primary'}`} />
+                                                </div>
+                                                <div className="flex items-center justify-between mb-2">
+                                                    {winner.txHash ? (
+                                                        <a
+                                                            href={`https://basescan.org/tx/${winner.txHash}`}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="text-xs text-primary hover:text-primary/80 underline transition-colors"
+                                                        >
+                                                            View TX
+                                                        </a>
+                                                    ) : (
+                                                        <span className="text-xs text-muted-foreground">
+                                                            {winner.timestamp.toLocaleTimeString()}
+                                                        </span>
+                                                    )}
+                                                    <span className="text-lg font-black text-primary">
+                                                        {winner.amount % 1 === 0 ? winner.amount.toString() : winner.amount.toFixed(2)} $DEGEN
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                        {winnersToShow < winners.length && (
+                                            <div className="flex justify-center mt-4">
+                                                <button
+                                                    onClick={() => setWinnersToShow(prev => Math.min(prev + 5, winners.length))}
+                                                    className="px-6 py-2 bg-gradient-to-r from-primary to-secondary hover:from-primary/80 hover:to-secondary/80 text-white text-sm font-bold rounded-lg transition-all duration-200 transform hover:scale-105"
+                                                >
+                                                    Load More Winners ({Math.min(5, winners.length - winnersToShow)} more of {winners.length} total)
+                                                </button>
+                                            </div>
+                                        )}
+                                    </>
+                                )}
+                            </div>
+                        </Card>
 
                         {/* How to Play */}
                         <Card className="glass-card border border-muted/30 p-4">
