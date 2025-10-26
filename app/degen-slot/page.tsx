@@ -249,37 +249,34 @@ const Index = () => {
             if (account) {
                 (async () => {
                     try {
-                        const cacheKey = `slot-stats-${account}`;
-                        const cachedStats = localStorage.getItem(cacheKey);
-                        let cachedSpins = 0;
-                        let cachedWinnings = 0;
-
-                        if (cachedStats) {
-                            const parsed = JSON.parse(cachedStats);
-                            cachedSpins = parsed.spins || 0;
-                            cachedWinnings = parsed.winnings || 0;
-                        }
-
-                        const [balanceValue, allowanceValue, spinsValue, winningsValue] = await Promise.all([
+                        const [balanceValue, allowanceValue, playerStats] = await Promise.all([
                             getTokenBalance(),
                             getAllowance(),
-                            getPlayerSpins(account).catch(() => cachedSpins),
-                            getPlayerWinnings(account).catch(() => cachedWinnings)
+                            getSlotPlayerStats(account).catch(() => null)
                         ]);
+
+                        let spinsValue = 0;
+                        let winningsValue = 0;
+
+                        if (playerStats) {
+                            spinsValue = playerStats.totalSpins;
+                            winningsValue = parseFloat(playerStats.totalWinnings) / 1e18;
+                        } else {
+                            // Fallback to RPC
+                            const [rpcSpins, rpcWinnings] = await Promise.all([
+                                getPlayerSpins(account),
+                                getPlayerWinnings(account)
+                            ]);
+                            spinsValue = rpcSpins;
+                            winningsValue = rpcWinnings;
+                        }
 
                         setBalance(balanceValue);
                         setAllowance(allowanceValue);
                         setTotalSpins(spinsValue);
                         setTotalWinnings(winningsValue);
-
-                        // Cache the successful results
-                        localStorage.setItem(cacheKey, JSON.stringify({
-                            spins: spinsValue,
-                            winnings: winningsValue,
-                            timestamp: Date.now()
-                        }));
                     } catch (error) {
-                        console.error('Error loading user data:', error);
+                        console.error('Error loading user data after win:', error);
                     }
                 })();
             }
@@ -301,37 +298,34 @@ const Index = () => {
             if (account) {
                 (async () => {
                     try {
-                        const cacheKey = `slot-stats-${account}`;
-                        const cachedStats = localStorage.getItem(cacheKey);
-                        let cachedSpins = 0;
-                        let cachedWinnings = 0;
-
-                        if (cachedStats) {
-                            const parsed = JSON.parse(cachedStats);
-                            cachedSpins = parsed.spins || 0;
-                            cachedWinnings = parsed.winnings || 0;
-                        }
-
-                        const [balanceValue, allowanceValue, spinsValue, winningsValue] = await Promise.all([
+                        const [balanceValue, allowanceValue, playerStats] = await Promise.all([
                             getTokenBalance(),
                             getAllowance(),
-                            getPlayerSpins(account).catch(() => cachedSpins),
-                            getPlayerWinnings(account).catch(() => cachedWinnings)
+                            getSlotPlayerStats(account).catch(() => null)
                         ]);
+
+                        let spinsValue = 0;
+                        let winningsValue = 0;
+
+                        if (playerStats) {
+                            spinsValue = playerStats.totalSpins;
+                            winningsValue = parseFloat(playerStats.totalWinnings) / 1e18;
+                        } else {
+                            // Fallback to RPC
+                            const [rpcSpins, rpcWinnings] = await Promise.all([
+                                getPlayerSpins(account),
+                                getPlayerWinnings(account)
+                            ]);
+                            spinsValue = rpcSpins;
+                            winningsValue = rpcWinnings;
+                        }
 
                         setBalance(balanceValue);
                         setAllowance(allowanceValue);
                         setTotalSpins(spinsValue);
                         setTotalWinnings(winningsValue);
-
-                        // Cache the successful results
-                        localStorage.setItem(cacheKey, JSON.stringify({
-                            spins: spinsValue,
-                            winnings: winningsValue,
-                            timestamp: Date.now()
-                        }));
                     } catch (error) {
-                        console.error('Error loading user data:', error);
+                        console.error('Error loading user data after no-win:', error);
                     }
                 })();
             }
@@ -434,39 +428,28 @@ const Index = () => {
                 try {
                     console.log('🎯 Loading user data for account:', account);
 
-                    // Try to load from cache first
-                    const cacheKey = `slot-stats-${account}`;
-                    const cachedStats = localStorage.getItem(cacheKey);
-                    let cachedSpins = 0;
-                    let cachedWinnings = 0;
-
-                    if (cachedStats) {
-                        const parsed = JSON.parse(cachedStats);
-                        cachedSpins = parsed.spins || 0;
-                        cachedWinnings = parsed.winnings || 0;
-                        console.log('🎯 Loaded cached stats:', { cachedSpins, cachedWinnings });
-                    }
-
                     const [balanceValue, allowanceValue, playerStats] = await Promise.all([
                         getTokenBalance(),
                         getAllowance(),
                         getSlotPlayerStats(account).catch(() => null)
                     ]);
 
-                    let spinsValue = cachedSpins;
-                    let winningsValue = cachedWinnings;
+                    let spinsValue = 0;
+                    let winningsValue = 0;
 
                     if (playerStats) {
                         spinsValue = playerStats.totalSpins;
                         winningsValue = parseFloat(playerStats.totalWinnings) / 1e18;
+                        console.log('🎯 Loaded stats from subgraph:', { spinsValue, winningsValue });
                     } else {
                         // Fallback to RPC if subgraph fails
                         const [rpcSpins, rpcWinnings] = await Promise.all([
-                            getPlayerSpins(account).catch(() => cachedSpins),
-                            getPlayerWinnings(account).catch(() => cachedWinnings)
+                            getPlayerSpins(account),
+                            getPlayerWinnings(account)
                         ]);
                         spinsValue = rpcSpins;
                         winningsValue = rpcWinnings;
+                        console.log('🎯 Loaded stats from RPC fallback:', { spinsValue, winningsValue });
                     }
 
                     console.log('🎯 User data loaded:', { balanceValue, allowanceValue, spinsValue, winningsValue });
@@ -474,30 +457,13 @@ const Index = () => {
                     setAllowance(allowanceValue);
                     setTotalSpins(spinsValue);
                     setTotalWinnings(winningsValue);
-
-                    // Cache the successful results
-                    localStorage.setItem(cacheKey, JSON.stringify({
-                        spins: spinsValue,
-                        winnings: winningsValue,
-                        timestamp: Date.now()
-                    }));
                 } catch (error) {
                     console.error('Error loading user data:', error);
-
-                    // Fallback to cached data on complete failure
-                    const cacheKey = `slot-stats-${account}`;
-                    const cachedStats = localStorage.getItem(cacheKey);
-                    if (cachedStats) {
-                        const parsed = JSON.parse(cachedStats);
-                        console.log('🎯 Using cached stats due to error:', parsed);
-                        setTotalSpins(parsed.spins || 0);
-                        setTotalWinnings(parsed.winnings || 0);
-                    }
                 }
             };
             loadUserData();
         }
-    }, [account, getTokenBalance, getAllowance, getPlayerSpins, getPlayerWinnings]);
+    }, [account]);
 
     // Auto-connect wallet in Farcaster environment
     useEffect(() => {
