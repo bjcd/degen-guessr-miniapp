@@ -10,7 +10,8 @@ import { useSlotContract } from "../hooks/useSlotContract";
 import { useConfetti } from "../hooks/useConfetti";
 import { useFarcaster } from "../farcaster-provider";
 import { fetchFarcasterProfile, FarcasterProfile, setCurrentUserProfile } from "../lib/farcaster-profiles";
-import { getRecentSlotWinners, getSlotPlayerStats, type SpinResult as GraphSpinResult } from "../lib/graphql-slot";
+import { getRecentSlotWinners, getSlotPlayerStats, getPlayerAllSpins, type SpinResult as GraphSpinResult } from "../lib/graphql-slot";
+import { sdk } from '@farcaster/miniapp-sdk';
 
 interface SpinResult {
     id: number;
@@ -75,6 +76,26 @@ const Index = () => {
     const [countdown, setCountdown] = useState(isFarcasterEnvironment ? 12 : 10);
 
     const { triggerConfetti } = useConfetti();
+
+    // Share win on Farcaster
+    const shareWinOnFarcaster = async (winAmount: number) => {
+        if (!isFarcasterEnvironment || !sdk) {
+            console.log('Not in Farcaster environment, skipping share');
+            return;
+        }
+
+        try {
+            const message = `I just won ${Math.floor(winAmount)} $DEGEN on Mega Degen 🎩 🥳\n\nWho's next?\n\nwww.degenguessr.xyz`;
+
+            console.log('🎩 Sharing win on Farcaster:', message);
+
+            await sdk.actions.composeCast({
+                text: message
+            });
+        } catch (error) {
+            console.error('Error sharing win on Farcaster:', error);
+        }
+    };
 
     // Initialize countdown to its starting value on mount
     useEffect(() => {
@@ -227,32 +248,38 @@ const Index = () => {
                 triggerConfetti();
                 setJackpotText("JACKPOT!! 🎩 🎩");
                 setStatusMessage("");
+                shareWinOnFarcaster(winAmount);
             } else if (category === "THREE_SAME") {
                 triggerConfetti();
                 setJackpotText("WON 500 DEGEN 🎩");
                 setStatusMessage("");
+                shareWinOnFarcaster(winAmount);
             } else if (category === "TWO_SAME") {
                 triggerConfetti();
                 setJackpotText("WON 250 DEGEN 🎩");
                 setStatusMessage("");
+                shareWinOnFarcaster(winAmount);
             } else if (category === "ONE_HAT") {
                 triggerConfetti();
                 setJackpotText("WON 50 DEGEN 🎩");
                 setStatusMessage("");
+                shareWinOnFarcaster(winAmount);
             } else if (category === "TWO_HATS") {
                 triggerConfetti();
                 setJackpotText("WON 350 DEGEN 🎩");
                 setStatusMessage("");
+                shareWinOnFarcaster(winAmount);
             }
 
             // Reload user data after win
             if (account) {
                 (async () => {
                     try {
-                        const [balanceValue, allowanceValue, playerStats] = await Promise.all([
+                        const [balanceValue, allowanceValue, playerStats, allSpins] = await Promise.all([
                             getTokenBalance(),
                             getAllowance(),
-                            getSlotPlayerStats(account).catch(() => null)
+                            getSlotPlayerStats(account).catch(() => null),
+                            getPlayerAllSpins(account).catch(() => [])
                         ]);
 
                         let spinsValue = 0;
@@ -261,6 +288,9 @@ const Index = () => {
                         if (playerStats) {
                             spinsValue = playerStats.totalSpins;
                             winningsValue = parseFloat(playerStats.totalWinnings) / 1e18;
+                        } else if (allSpins && allSpins.length > 0) {
+                            spinsValue = allSpins.length;
+                            winningsValue = allSpins.reduce((sum, spin) => sum + parseFloat(spin.payout) / 1e18, 0);
                         } else {
                             // Fallback to RPC
                             const [rpcSpins, rpcWinnings] = await Promise.all([
@@ -298,10 +328,11 @@ const Index = () => {
             if (account) {
                 (async () => {
                     try {
-                        const [balanceValue, allowanceValue, playerStats] = await Promise.all([
+                        const [balanceValue, allowanceValue, playerStats, allSpins] = await Promise.all([
                             getTokenBalance(),
                             getAllowance(),
-                            getSlotPlayerStats(account).catch(() => null)
+                            getSlotPlayerStats(account).catch(() => null),
+                            getPlayerAllSpins(account).catch(() => [])
                         ]);
 
                         let spinsValue = 0;
@@ -310,6 +341,9 @@ const Index = () => {
                         if (playerStats) {
                             spinsValue = playerStats.totalSpins;
                             winningsValue = parseFloat(playerStats.totalWinnings) / 1e18;
+                        } else if (allSpins && allSpins.length > 0) {
+                            spinsValue = allSpins.length;
+                            winningsValue = allSpins.reduce((sum, spin) => sum + parseFloat(spin.payout) / 1e18, 0);
                         } else {
                             // Fallback to RPC
                             const [rpcSpins, rpcWinnings] = await Promise.all([
@@ -365,7 +399,7 @@ const Index = () => {
                 getPot(),
                 fetchGameConstants(),
                 fetchPayouts(),
-                getRecentSlotWinners(20).catch(() => [])
+                getRecentSlotWinners(1000, 0).catch(() => [])
             ]);
 
             setPot(potValue);
@@ -374,6 +408,7 @@ const Index = () => {
 
             // Convert GraphQL winners to our format
             if (graphWinners.length > 0) {
+                console.log('🏆 Fetched', graphWinners.length, 'winners from subgraph');
                 const formattedWinners: Winner[] = graphWinners.map((winner: GraphSpinResult) => ({
                     id: winner.id,
                     address: winner.player,
@@ -383,7 +418,10 @@ const Index = () => {
                 }));
 
                 const winnersWithProfiles = await fetchWinnerProfiles(formattedWinners);
+                console.log('🏆 After fetching profiles, we have', winnersWithProfiles.length, 'winners');
                 setWinners(winnersWithProfiles);
+            } else {
+                console.log('🏆 No winners found from subgraph');
             }
         } catch (error) {
             console.error('Error loading public data:', error);
@@ -428,21 +466,28 @@ const Index = () => {
                 try {
                     console.log('🎯 Loading user data for account:', account);
 
-                    const [balanceValue, allowanceValue, playerStats] = await Promise.all([
+                    const [balanceValue, allowanceValue, playerStats, allSpins] = await Promise.all([
                         getTokenBalance(),
                         getAllowance(),
-                        getSlotPlayerStats(account).catch(() => null)
+                        getSlotPlayerStats(account).catch(() => null),
+                        getPlayerAllSpins(account).catch(() => [])
                     ]);
 
                     let spinsValue = 0;
                     let winningsValue = 0;
 
+                    // Try aggregated stats first
                     if (playerStats) {
                         spinsValue = playerStats.totalSpins;
                         winningsValue = parseFloat(playerStats.totalWinnings) / 1e18;
-                        console.log('🎯 Loaded stats from subgraph:', { spinsValue, winningsValue });
+                        console.log('🎯 Loaded stats from subgraph (aggregated):', { spinsValue, winningsValue });
+                    } else if (allSpins && allSpins.length > 0) {
+                        // Fall back to counting individual spins
+                        spinsValue = allSpins.length;
+                        winningsValue = allSpins.reduce((sum, spin) => sum + parseFloat(spin.payout) / 1e18, 0);
+                        console.log('🎯 Loaded stats from subgraph (individual spins):', { spinsValue, winningsValue });
                     } else {
-                        // Fallback to RPC if subgraph fails
+                        // Fall back to RPC if subgraph fails
                         const [rpcSpins, rpcWinnings] = await Promise.all([
                             getPlayerSpins(account),
                             getPlayerWinnings(account)

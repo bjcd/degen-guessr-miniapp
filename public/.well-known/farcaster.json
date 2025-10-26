@@ -30,7 +30,8 @@
         "ogTitle": "Degen Guessr",
         "requiredCapabilities": [
             "wallet.getEthereumProvider",
-            "actions.addMiniApp"
+            "actions.addMiniApp",
+            "actions.composeCast"
         ]
     }
 }

@@ -63,11 +63,12 @@ async function makeGraphQLRequest(query: string, variables: any = {}) {
     }
 }
 
-export async function getRecentSlotWinners(limit: number = 20): Promise<SpinResult[]> {
+export async function getRecentSlotWinners(limit: number = 1000, skip: number = 0): Promise<SpinResult[]> {
     const query = `
-        query GetRecentSlotWinners($limit: Int!) {
+        query GetRecentSlotWinners($limit: Int!, $skip: Int!) {
             spinResults(
                 first: $limit
+                skip: $skip
                 orderBy: timestamp
                 orderDirection: desc
                 where: { payout_gt: "0" }
@@ -86,7 +87,7 @@ export async function getRecentSlotWinners(limit: number = 20): Promise<SpinResu
     `;
 
     try {
-        const data = await makeGraphQLRequest(query, { limit });
+        const data = await makeGraphQLRequest(query, { limit, skip });
         return data?.spinResults || [];
     } catch (error) {
         console.error('Error fetching recent slot winners:', error);
@@ -133,6 +134,37 @@ export async function getSlotGameStats(): Promise<SlotGameStats | null> {
     } catch (error) {
         console.error('Error fetching slot game stats:', error);
         return null;
+    }
+}
+
+export async function getPlayerAllSpins(playerAddress: string): Promise<SpinResult[]> {
+    const query = `
+        query GetPlayerAllSpins($playerAddress: String!) {
+            spinResults(
+                first: 1000
+                orderBy: timestamp
+                orderDirection: desc
+                where: { player: $playerAddress }
+            ) {
+                id
+                tx
+                block
+                timestamp
+                player
+                roll
+                category
+                payout
+                potAfter
+            }
+        }
+    `;
+
+    try {
+        const data = await makeGraphQLRequest(query, { playerAddress: playerAddress.toLowerCase() });
+        return data?.spinResults || [];
+    } catch (error) {
+        console.error('Error fetching player all spins:', error);
+        return [];
     }
 }
 
