@@ -72,7 +72,7 @@ const Index = () => {
     const [winners, setWinners] = useState<Winner[]>([]);
     const [winnersToShow, setWinnersToShow] = useState(5);
     const [leaderboard] = useState<LeaderboardEntry[]>([]);
-    const [countdown, setCountdown] = useState(10);
+    const [countdown, setCountdown] = useState(isFarcasterEnvironment ? 3 : 10);
 
     const { triggerConfetti } = useConfetti();
 
@@ -396,23 +396,30 @@ const Index = () => {
 
     // Countdown on page load for Farcaster initialization
     useEffect(() => {
+        console.log('🎯 isFarcasterEnvironment changed:', isFarcasterEnvironment);
+        const initialCountdown = isFarcasterEnvironment ? 3 : 10;
+        console.log('🎯 Starting countdown timer with initial:', initialCountdown, 'for isFarcaster:', isFarcasterEnvironment);
+        
+        // Reset countdown immediately when isFarcaster changes
+        let currentCount = initialCountdown;
+        setCountdown(initialCountdown);
+        
         const interval = setInterval(() => {
-            setCountdown((prev) => {
-                if (prev <= 0) return 0;
-                return prev - 1;
-            });
+            currentCount = Math.max(0, currentCount - 1);
+            console.log('🎯 Setting countdown to:', currentCount, 'for isFarcaster:', isFarcasterEnvironment);
+            setCountdown(currentCount);
+            
+            if (currentCount === 0) {
+                console.log('🎯 Countdown complete! Button should be enabled now.');
+                clearInterval(interval);
+            }
         }, 1000);
 
-        // Clear interval after 10 seconds
-        const timeout = setTimeout(() => {
-            clearInterval(interval);
-        }, 10000);
-
         return () => {
+            console.log('🎯 Cleaning up countdown timer for isFarcaster:', isFarcasterEnvironment);
             clearInterval(interval);
-            clearTimeout(timeout);
         };
-    }, []);
+    }, [isFarcasterEnvironment]);
 
     useEffect(() => {
         if (account) {
@@ -783,10 +790,10 @@ const Index = () => {
                                 >
                                     <Image src="/degen-logo.png" alt="Hat" width={32} height={32} className="object-contain" />
                                     <Zap className="w-6 h-6" />
-                                    {spinning 
-                                        ? "SPINNING..." 
-                                        : countdown > 0 
-                                            ? `PLAY IN ${countdown}...` 
+                                    {spinning
+                                        ? "SPINNING..."
+                                        : countdown > 0
+                                            ? `PLAY IN ${countdown}...`
                                             : `SPIN FOR ${gameConstants.costPerSpin} $DEGEN`}
                                     <Zap className="w-6 h-6" />
                                 </Button>
