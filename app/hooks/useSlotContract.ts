@@ -480,7 +480,7 @@ export function useSlotContract(callbacks?: SlotContractCallbacks) {
             // Simulate the transaction first to catch potential failures
             console.log('Simulating transaction...');
             try {
-                await contract.connect(signer).spin.staticCall();
+                await (contract.connect(signer) as any).spin.staticCall();
                 console.log('✅ Transaction simulation successful');
             } catch (simulationError: any) {
                 console.error('❌ Transaction simulation failed:', simulationError);
@@ -517,7 +517,7 @@ export function useSlotContract(callbacks?: SlotContractCallbacks) {
                 // Try to get the revert reason by calling the transaction again
                 try {
                     console.log('Attempting to get revert reason...');
-                    await contract.connect(signer).spin.staticCall();
+                    await (contract.connect(signer) as any).spin.staticCall();
                 } catch (revertError: any) {
                     console.log('Revert reason:', revertError.message || revertError.reason);
                     errorMessage += ` - Revert reason: ${revertError.message || revertError.reason || 'Unknown'}`;
