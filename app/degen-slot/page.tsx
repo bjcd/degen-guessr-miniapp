@@ -48,6 +48,7 @@ const Index = () => {
     const [reels, setReels] = useState<string[]>(["⭐", "🎩", "🍒"]);
     const spinningRef = useRef(false);
     const refetchPlayerStatsRef = useRef<((playerAccount: string) => Promise<void>) | null>(null);
+    const accountRef = useRef<string | null>(null);
 
     const [lastSpins, setLastSpins] = useState<SpinResult[]>([]);
     const [totalSpins, setTotalSpins] = useState(0);
@@ -281,11 +282,11 @@ https://www.degenguessr.xyz`.trim();
             }
 
             // Reload user data after win
-            if (account) {
-                console.log('💾 Calling refetchPlayerStats after win, account:', account);
+            if (accountRef.current) {
+                console.log('💾 Calling refetchPlayerStats after win, account:', accountRef.current);
                 console.log('💾 refetchPlayerStats type:', typeof refetchPlayerStatsRef.current);
                 if (typeof refetchPlayerStatsRef.current === 'function') {
-                    refetchPlayerStatsRef.current(account);
+                    refetchPlayerStatsRef.current(accountRef.current);
                 } else {
                     console.error('❌ refetchPlayerStats is not a function!');
                 }
@@ -305,11 +306,11 @@ https://www.degenguessr.xyz`.trim();
             setStatusMessage("");
 
             // Reload user data after no-win spin
-            if (account) {
-                console.log('💾 Calling refetchPlayerStats after no-win, account:', account);
+            if (accountRef.current) {
+                console.log('💾 Calling refetchPlayerStats after no-win, account:', accountRef.current);
                 console.log('💾 refetchPlayerStats type:', typeof refetchPlayerStatsRef.current);
                 if (typeof refetchPlayerStatsRef.current === 'function') {
-                    refetchPlayerStatsRef.current(account);
+                    refetchPlayerStatsRef.current(accountRef.current);
                 } else {
                     console.error('❌ refetchPlayerStats is not a function!');
                 }
@@ -577,6 +578,10 @@ https://www.degenguessr.xyz`.trim();
             }
         }
     }, [isConnected, account, isFarcasterEnvironment, user]);
+
+    useEffect(() => {
+        accountRef.current = account;
+    }, [account]);
 
     const handleSpin = async () => {
         if (spinning || !isConnected) return;
