@@ -33,6 +33,7 @@ interface SlotGameStats {
 
 async function makeGraphQLRequest(query: string, variables: any = {}) {
     try {
+        console.log('📊 GraphQL Request:', { url: SUBGRAPH_URL, variables });
         const response = await fetch(SUBGRAPH_URL, {
             method: 'POST',
             headers: {
@@ -50,6 +51,7 @@ async function makeGraphQLRequest(query: string, variables: any = {}) {
         }
 
         const data = await response.json();
+        console.log('📊 GraphQL Response:', data);
 
         if (data.errors) {
             console.error('GraphQL errors:', data.errors);
@@ -58,7 +60,7 @@ async function makeGraphQLRequest(query: string, variables: any = {}) {
 
         return data.data;
     } catch (error) {
-        console.error('Error making GraphQL request:', error);
+        console.error('❌ Error making GraphQL request:', error);
         throw error;
     }
 }
@@ -88,7 +90,9 @@ export async function getRecentSlotWinners(limit: number = 1000, skip: number = 
 
     try {
         const data = await makeGraphQLRequest(query, { limit, skip });
-        return data?.spinResults || [];
+        const winners = data?.spinResults || [];
+        console.log('🏆 Recent winners from subgraph:', winners.length, 'winners');
+        return winners;
     } catch (error) {
         console.error('Error fetching recent slot winners:', error);
         return [];
@@ -110,7 +114,9 @@ export async function getSlotPlayerStats(playerAddress: string): Promise<SlotPla
 
     try {
         const data = await makeGraphQLRequest(query, { playerId: playerAddress.toLowerCase() });
-        return data?.slotPlayerStats || null;
+        const stats = data?.slotPlayerStats;
+        console.log('📊 Player stats for', playerAddress, ':', stats);
+        return stats || null;
     } catch (error) {
         console.error('Error fetching slot player stats:', error);
         return null;
@@ -130,7 +136,9 @@ export async function getSlotGameStats(): Promise<SlotGameStats | null> {
 
     try {
         const data = await makeGraphQLRequest(query);
-        return data?.slotGameStats || null;
+        const stats = data?.slotGameStats;
+        console.log('🎮 Game stats:', stats);
+        return stats || null;
     } catch (error) {
         console.error('Error fetching slot game stats:', error);
         return null;
@@ -161,7 +169,9 @@ export async function getPlayerAllSpins(playerAddress: string): Promise<SpinResu
 
     try {
         const data = await makeGraphQLRequest(query, { playerAddress: playerAddress.toLowerCase() });
-        return data?.spinResults || [];
+        const spins = data?.spinResults || [];
+        console.log('🎰 All spins for player', playerAddress, ':', spins.length, 'spins');
+        return spins;
     } catch (error) {
         console.error('Error fetching player all spins:', error);
         return [];
