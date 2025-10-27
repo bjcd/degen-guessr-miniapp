@@ -547,7 +547,7 @@ export default function Home() {
         <main className="min-h-screen bg-gradient-to-br from-background via-[hsl(270_50%_10%)] to-background p-4 py-8">
             <div className="max-w-6xl mx-auto space-y-6 animate-fade-in">
                 <CasinoNav />
-                
+
                 {/* Header with Logo */}
                 <div className="text-center space-y-3">
                     <div className="flex items-center justify-center gap-3">
@@ -713,7 +713,7 @@ export default function Home() {
                                             Switch to Super Degen Mode for better odds, higher stakes.
                                         </p>
                                         <p className="text-xs text-muted-foreground/70 mt-1">
-                                            1 in 100 chances to hit the pot
+                                            1 in 10 chances to hit the pot
                                         </p>
                                     </div>
                                 </div>

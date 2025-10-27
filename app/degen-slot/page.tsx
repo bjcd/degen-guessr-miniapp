@@ -718,7 +718,7 @@ https://www.degenguessr.xyz`.trim();
         <main className="min-h-screen bg-gradient-to-br from-background via-[hsl(270_50%_10%)] to-background p-4 py-8">
             <div className="max-w-6xl mx-auto space-y-6 animate-fade-in">
                 <CasinoNav />
-                
+
                 {/* Header with Logo and Wallet Connection */}
                 <div className="text-center space-y-3">
                     <div className="flex items-center justify-center gap-3">
