@@ -20,19 +20,15 @@ const lastPotByAddress = new Map<string, number>();
 const lastBalanceByAccount = new Map<string, number>();
 const lastAllowanceByKey = new Map<string, number>(); // key: `${account}-${contract}`
 
-// Session-based block tracking for optimized queries
-// Store the first spin block of this session to avoid querying the entire history
-const sessionFirstSpinBlock = new Map<string, number>(); // key: `${account}-${contractAddress}`
-
 // Helper: retry a promise-returning fn with backoff and optional alt provider
 function isRetryableError(err: any): boolean {
     if (!err) return false;
     const msg = String(err.message || '');
     const code = String(err.code || '');
     const errorCode = err.error?.code || err.code;
-    
-    return msg.includes('429') 
-        || msg.includes('Too Many Requests') 
+
+    return msg.includes('429')
+        || msg.includes('Too Many Requests')
         || msg.includes('missing revert data')
         || msg.includes('no backend is currently healthy')
         || msg.includes('unhealthy')
@@ -791,21 +787,10 @@ export function useSlotContract(callbacks?: SlotContractCallbacks) {
             console.log('🎰 Getting player spins for:', playerAddress);
 
             const currentBlock = await rpcProviderPrimary.getBlockNumber();
-
-            // Use session block if this is a subsequent spin in the same session
-            const sessionKey = `${playerAddress}-${SLOT_CONTRACT_ADDRESS}`;
-            let fromBlock: number;
-
-            if (sessionFirstSpinBlock.has(sessionKey)) {
-                // Subsequent spin - use the session's first block
-                fromBlock = sessionFirstSpinBlock.get(sessionKey)!;
-                console.log('🎰 Using session block tracking - fromBlock:', fromBlock);
-            } else {
-                // First spin of session - query last 50k blocks and store this block
-                fromBlock = Math.max(0, currentBlock - 50000);
-                sessionFirstSpinBlock.set(sessionKey, fromBlock);
-                console.log('🎰 First spin of session - storing block:', fromBlock);
-            }
+            
+            // Always compute fromBlock dynamically to respect 50k block limit
+            const fromBlock = Math.max(0, currentBlock - 50000);
+            console.log('🎰 Querying from block:', fromBlock, '(current:', currentBlock, ', range:', currentBlock - fromBlock, ')');
 
             const filter = readOnlyContract!.filters.SpinResult(playerAddress);
             const events = await withRetries(async () => callWithProviderFailover(
@@ -829,21 +814,10 @@ export function useSlotContract(callbacks?: SlotContractCallbacks) {
             requireContract();
 
             const currentBlock = await rpcProviderPrimary.getBlockNumber();
-
-            // Use session block if this is a subsequent spin in the same session
-            const sessionKey = `${playerAddress}-${SLOT_CONTRACT_ADDRESS}`;
-            let fromBlock: number;
-
-            if (sessionFirstSpinBlock.has(sessionKey)) {
-                // Subsequent spin - use the session's first block
-                fromBlock = sessionFirstSpinBlock.get(sessionKey)!;
-                console.log('🎰 Using session block tracking for winnings - fromBlock:', fromBlock);
-            } else {
-                // First spin of session - query last 50k blocks
-                fromBlock = Math.max(0, currentBlock - 50000);
-                sessionFirstSpinBlock.set(sessionKey, fromBlock);
-                console.log('🎰 First winnings query - storing block:', fromBlock);
-            }
+            
+            // Always compute fromBlock dynamically to respect 50k block limit
+            const fromBlock = Math.max(0, currentBlock - 50000);
+            console.log('🎰 Querying winnings from block:', fromBlock, '(current:', currentBlock, ', range:', currentBlock - fromBlock, ')');
 
             const filter = readOnlyContract!.filters.SpinResult(playerAddress);
             const events = await withRetries(async () => callWithProviderFailover(
