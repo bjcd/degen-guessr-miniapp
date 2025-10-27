@@ -104,7 +104,7 @@ export async function fetchFarcasterProfile(walletAddress: string): Promise<Farc
         const profile: FarcasterProfile = {
             fid: user.fid,
             username: user.username || 'unknown',
-            displayName: user.displayName || user.username || 'Unknown User',
+            displayName: user.username || 'Unknown User',
             pfpUrl: user.pfp || 'https://via.placeholder.com/150',
             walletAddress: walletAddress,
         };
@@ -187,7 +187,7 @@ export async function fetchFarcasterProfiles(walletAddresses: string[]): Promise
                 const profile: FarcasterProfile = {
                     fid: user.fid,
                     username: user.username || 'unknown',
-                    displayName: user.displayName || user.username || 'Unknown User',
+                    displayName: user.username || 'Unknown User',
                     pfpUrl: user.pfp || 'https://via.placeholder.com/150',
                     walletAddress: address,
                 };
