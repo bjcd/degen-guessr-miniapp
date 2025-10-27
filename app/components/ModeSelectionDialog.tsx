@@ -151,7 +151,7 @@ export default function ModeSelectionDialog({ isOpen, onSelectMode, onClose }: M
                                 <div className="text-center space-y-2">
                                     <div className="flex items-center justify-center gap-2 text-primary font-bold text-xl">
                                         <Crown className="w-6 h-6" />
-                                        <span>Guessr Degen</span>
+                                        <span>Degen Guessr</span>
                                     </div>
                                     <div className="text-3xl font-black bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
                                         {isLoadingPots ? (
@@ -169,7 +169,7 @@ export default function ModeSelectionDialog({ isOpen, onSelectMode, onClose }: M
                                 {/* Mode Details */}
                                 <div className="space-y-3 text-center">
                                     <p className="text-foreground font-semibold">
-                                        Guess a number between 1 and 100.<br />Lower odds, cautious stakes
+                                        Guess a number between 1 and 100. Lower odds, cautious stakes
                                     </p>
                                     <div className="bg-muted/40 rounded-xl p-4 space-y-2">
                                         <div className="flex items-center justify-center gap-2 text-sm">
@@ -201,7 +201,7 @@ export default function ModeSelectionDialog({ isOpen, onSelectMode, onClose }: M
                                 <div className="text-center space-y-2">
                                     <div className="flex items-center justify-center gap-2 text-yellow-400 font-bold text-xl">
                                         <Crown className="w-6 h-6" />
-                                        <span>Guessr Super Degen</span>
+                                        <span>Degen Guessr Super</span>
                                     </div>
                                     <div className="text-3xl font-black bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent">
                                         {isLoadingPots ? (
@@ -219,7 +219,7 @@ export default function ModeSelectionDialog({ isOpen, onSelectMode, onClose }: M
                                 {/* Mode Details */}
                                 <div className="space-y-3 text-center">
                                     <p className="text-foreground font-semibold">
-                                        Guess a number between 1 and 10.<br />Better odds, higher stakes
+                                        Guess a number between 1 and 10. Good odds, higher stakes.
                                     </p>
                                     <div className="bg-muted/40 rounded-xl p-4 space-y-2">
                                         <div className="flex items-center justify-center gap-2 text-sm">
