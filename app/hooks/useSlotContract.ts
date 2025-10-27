@@ -8,17 +8,21 @@ import { useFarcaster } from '../farcaster-provider';
 const SLOT_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_SLOT_CONTRACT_ADDRESS || '0x6285b23b5CbDD84187B15cC1aC23cFC5F659Ac21';
 const TOKEN_ADDRESS = process.env.NEXT_PUBLIC_DEGEN_TOKEN_ADDRESS || '0x4ed4E862860beD51a9570b96d89aF5E1B0Efefed';
 const BASE_RPC_URL = process.env.NEXT_PUBLIC_BASE_RPC_URL || 'https://mainnet.base.org';
-const BASE_RPC_URL_ALT = process.env.NEXT_PUBLIC_BASE_RPC_URL_ALT || '';
+const BASE_RPC_URL_ALT = process.env.NEXT_PUBLIC_BASE_RPC_URL_ALT || 'https://base-rpc.publicnode.com';
 
 console.log('Slot Contract Address:', SLOT_CONTRACT_ADDRESS);
 console.log('Token Address:', TOKEN_ADDRESS);
 console.log('Base RPC URL:', BASE_RPC_URL);
-if (BASE_RPC_URL_ALT) console.log('Base RPC URL (alt):', BASE_RPC_URL_ALT);
+console.log('Base RPC URL (alt):', BASE_RPC_URL_ALT);
 
 // Keep a tiny in-memory cache to avoid UI flicker on transient RPC errors
 const lastPotByAddress = new Map<string, number>();
 const lastBalanceByAccount = new Map<string, number>();
 const lastAllowanceByKey = new Map<string, number>(); // key: `${account}-${contract}`
+
+// Session-based block tracking for optimized queries
+// Store the first spin block of this session to avoid querying the entire history
+const sessionFirstSpinBlock = new Map<string, number>(); // key: `${account}-${contractAddress}`
 
 // Helper: retry a promise-returning fn with backoff and optional alt provider
 function isRetryableError(err: any): boolean {
@@ -774,27 +778,37 @@ export function useSlotContract(callbacks?: SlotContractCallbacks) {
         try {
             requireContract();
             console.log('🎰 Getting player spins for:', playerAddress);
-
-            // Get current block number and query from last 50k blocks (approx 1 week on Base)
+            
             const currentBlock = await rpcProviderPrimary.getBlockNumber();
-            const fromBlock = Math.max(0, currentBlock - 50000); // Query last 50k blocks max
-
+            
+            // Use session block if this is a subsequent spin in the same session
+            const sessionKey = `${playerAddress}-${SLOT_CONTRACT_ADDRESS}`;
+            let fromBlock: number;
+            
+            if (sessionFirstSpinBlock.has(sessionKey)) {
+                // Subsequent spin - use the session's first block
+                fromBlock = sessionFirstSpinBlock.get(sessionKey)!;
+                console.log('🎰 Using session block tracking - fromBlock:', fromBlock);
+            } else {
+                // First spin of session - query last 50k blocks and store this block
+                fromBlock = Math.max(0, currentBlock - 50000);
+                sessionFirstSpinBlock.set(sessionKey, fromBlock);
+                console.log('🎰 First spin of session - storing block:', fromBlock);
+            }
+            
             const filter = readOnlyContract!.filters.SpinResult(playerAddress);
             const events = await withRetries(async () => callWithProviderFailover(
                 async () => await readOnlyContract!.queryFilter(filter, fromBlock),
                 async () => {
                     const alt = new ethers.Contract(SLOT_CONTRACT_ADDRESS!, DegenSlotABI, rpcProviderAlt!);
-                    const altBlock = await rpcProviderAlt!.getBlockNumber();
-                    const altFromBlock = Math.max(0, altBlock - 50000);
-                    return await alt.queryFilter(filter, altFromBlock);
+                    return await alt.queryFilter(filter, fromBlock);
                 }
             ));
-
             console.log('🎰 Found', events.length, 'spin events for player (queried from block', fromBlock, ')');
             return events.length;
         } catch (error) {
             console.error('Error getting player spins:', error);
-            return 0;
+            throw error; // Re-throw so caller knows it failed
         }
     };
 
@@ -802,19 +816,30 @@ export function useSlotContract(callbacks?: SlotContractCallbacks) {
     const getPlayerWinnings = async (playerAddress: string): Promise<number> => {
         try {
             requireContract();
-
-            // Get current block number and query from last 50k blocks (approx 1 week on Base)
+            
             const currentBlock = await rpcProviderPrimary.getBlockNumber();
-            const fromBlock = Math.max(0, currentBlock - 50000); // Query last 50k blocks max
+            
+            // Use session block if this is a subsequent spin in the same session
+            const sessionKey = `${playerAddress}-${SLOT_CONTRACT_ADDRESS}`;
+            let fromBlock: number;
+            
+            if (sessionFirstSpinBlock.has(sessionKey)) {
+                // Subsequent spin - use the session's first block
+                fromBlock = sessionFirstSpinBlock.get(sessionKey)!;
+                console.log('🎰 Using session block tracking for winnings - fromBlock:', fromBlock);
+            } else {
+                // First spin of session - query last 50k blocks
+                fromBlock = Math.max(0, currentBlock - 50000);
+                sessionFirstSpinBlock.set(sessionKey, fromBlock);
+                console.log('🎰 First winnings query - storing block:', fromBlock);
+            }
 
             const filter = readOnlyContract!.filters.SpinResult(playerAddress);
             const events = await withRetries(async () => callWithProviderFailover(
                 async () => await readOnlyContract!.queryFilter(filter, fromBlock),
                 async () => {
                     const alt = new ethers.Contract(SLOT_CONTRACT_ADDRESS!, DegenSlotABI, rpcProviderAlt!);
-                    const altBlock = await rpcProviderAlt!.getBlockNumber();
-                    const altFromBlock = Math.max(0, altBlock - 50000);
-                    return await alt.queryFilter(filter, altFromBlock);
+                    return await alt.queryFilter(filter, fromBlock);
                 }
             ));
 
@@ -830,7 +855,7 @@ export function useSlotContract(callbacks?: SlotContractCallbacks) {
             return totalWinnings;
         } catch (error) {
             console.error('Error getting player winnings:', error);
-            return 0;
+            throw error; // Re-throw so caller knows it failed
         }
     };
 
