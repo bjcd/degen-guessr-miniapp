@@ -29,7 +29,18 @@ function isRetryableError(err: any): boolean {
     if (!err) return false;
     const msg = String(err.message || '');
     const code = String(err.code || '');
-    return msg.includes('429') || msg.includes('Too Many Requests') || msg.includes('missing revert data') || code === 'CALL_EXCEPTION';
+    const errorCode = err.error?.code || err.code;
+    
+    return msg.includes('429') 
+        || msg.includes('Too Many Requests') 
+        || msg.includes('missing revert data')
+        || msg.includes('no backend is currently healthy')
+        || msg.includes('unhealthy')
+        || msg.includes('TIMEOUT')
+        || code === 'CALL_EXCEPTION'
+        || code === 'TIMEOUT'
+        || code === 'SERVER_ERROR'
+        || errorCode === -32011;
 }
 
 async function withRetries<T>(fn: () => Promise<T>, attempts = 3, baseDelayMs = 250): Promise<T> {
@@ -778,13 +789,13 @@ export function useSlotContract(callbacks?: SlotContractCallbacks) {
         try {
             requireContract();
             console.log('🎰 Getting player spins for:', playerAddress);
-            
+
             const currentBlock = await rpcProviderPrimary.getBlockNumber();
-            
+
             // Use session block if this is a subsequent spin in the same session
             const sessionKey = `${playerAddress}-${SLOT_CONTRACT_ADDRESS}`;
             let fromBlock: number;
-            
+
             if (sessionFirstSpinBlock.has(sessionKey)) {
                 // Subsequent spin - use the session's first block
                 fromBlock = sessionFirstSpinBlock.get(sessionKey)!;
@@ -795,7 +806,7 @@ export function useSlotContract(callbacks?: SlotContractCallbacks) {
                 sessionFirstSpinBlock.set(sessionKey, fromBlock);
                 console.log('🎰 First spin of session - storing block:', fromBlock);
             }
-            
+
             const filter = readOnlyContract!.filters.SpinResult(playerAddress);
             const events = await withRetries(async () => callWithProviderFailover(
                 async () => await readOnlyContract!.queryFilter(filter, fromBlock),
@@ -816,13 +827,13 @@ export function useSlotContract(callbacks?: SlotContractCallbacks) {
     const getPlayerWinnings = async (playerAddress: string): Promise<number> => {
         try {
             requireContract();
-            
+
             const currentBlock = await rpcProviderPrimary.getBlockNumber();
-            
+
             // Use session block if this is a subsequent spin in the same session
             const sessionKey = `${playerAddress}-${SLOT_CONTRACT_ADDRESS}`;
             let fromBlock: number;
-            
+
             if (sessionFirstSpinBlock.has(sessionKey)) {
                 // Subsequent spin - use the session's first block
                 fromBlock = sessionFirstSpinBlock.get(sessionKey)!;
