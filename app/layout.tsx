@@ -21,7 +21,7 @@ export const metadata: Metadata = {
     },
     // Farcaster MiniApp Embed (single JSON meta tag, no mixing with Frames v1)
     other: {
-        'fc:miniapp': '{"version":"1","imageUrl":"https://degenguessr.xyz/miniapp-icon-large.png","button":{"title":"Play Degen Guessr","action":{"type":"launch_frame","name":"Degen Guessr","url":"https://degenguessr.xyz","splashImageUrl":"https://degenguessr.xyz/icon.png","splashBackgroundColor":"#d26cf8"}}}',
+        'fc:miniapp': '{"version":"1","imageUrl":"https://degenguessr.xyz/miniapp-icon-large.png","button":{"title":"╰┈➤ PLAY NOW.","action":{"type":"launch_frame","name":"Degen House","url":"https://degenguessr.xyz","splashImageUrl":"https://degenguessr.xyz/icon.png","splashBackgroundColor":"#d26cf8"}}}',
     },
 };
 

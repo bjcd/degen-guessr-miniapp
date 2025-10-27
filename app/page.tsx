@@ -12,6 +12,7 @@ import Link from "next/link";
 import { fetchFarcasterProfile, FarcasterProfile, setCurrentUserProfile } from "./lib/farcaster-profiles";
 import { useConfetti } from "./hooks/useConfetti";
 import ModeSelectionDialog from "./components/ModeSelectionDialog";
+import CasinoNav from "./components/CasinoNav";
 
 interface Attempt {
     id: number;
@@ -545,12 +546,14 @@ export default function Home() {
     return (
         <main className="min-h-screen bg-gradient-to-br from-background via-[hsl(270_50%_10%)] to-background p-4 py-8">
             <div className="max-w-6xl mx-auto space-y-6 animate-fade-in">
+                <CasinoNav />
+                
                 {/* Header with Logo */}
                 <div className="text-center space-y-3">
                     <div className="flex items-center justify-center gap-3">
                         <Image src="/degen-logo.png" alt="Degen Hat" width={64} height={64} className="w-16 h-16 object-contain animate-[bounce_2s_ease-in-out_infinite]" />
                         <h1 className="text-6xl font-black bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent neon-glow">
-                            DEGEN GUESSR
+                            DEGEN HOUSE
                         </h1>
                         <Image src="/degen-logo.png" alt="Degen Hat" width={64} height={64} className="w-16 h-16 object-contain animate-[bounce_2s_ease-in-out_infinite] scale-x-[-1]" />
                     </div>
