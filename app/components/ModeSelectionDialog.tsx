@@ -169,7 +169,7 @@ export default function ModeSelectionDialog({ isOpen, onSelectMode, onClose }: M
                                 {/* Mode Details */}
                                 <div className="space-y-3 text-center">
                                     <p className="text-foreground font-semibold">
-                                        Lower odds, cautious stakes
+                                        Guess a number between 1 and 100.<br />Lower odds, cautious stakes
                                     </p>
                                     <div className="bg-muted/40 rounded-xl p-4 space-y-2">
                                         <div className="flex items-center justify-center gap-2 text-sm">
@@ -219,7 +219,7 @@ export default function ModeSelectionDialog({ isOpen, onSelectMode, onClose }: M
                                 {/* Mode Details */}
                                 <div className="space-y-3 text-center">
                                     <p className="text-foreground font-semibold">
-                                        Better odds, higher stakes
+                                        Guess a number between 1 and 10.<br />Better odds, higher stakes
                                     </p>
                                     <div className="bg-muted/40 rounded-xl p-4 space-y-2">
                                         <div className="flex items-center justify-center gap-2 text-sm">
