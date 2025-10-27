@@ -113,27 +113,18 @@ https://www.degenguessr.xyz`.trim();
 
     // Function to fetch winners' Farcaster profiles
     const fetchWinnerProfiles = async (winnersToFetch: Winner[]): Promise<Winner[]> => {
-        console.log('🏆 Starting to fetch profiles for', winnersToFetch.length, 'winners');
-        const results = await Promise.all(winnersToFetch.map(async (winner) => {
+        return await Promise.all(winnersToFetch.map(async (winner) => {
             try {
                 const profile = await fetchFarcasterProfile(winner.address);
-                if (profile) {
-                    console.log('✅ Profile found for', winner.address, '- username:', profile.username);
-                    return {
-                        ...winner,
-                        farcasterProfile: profile
-                    };
-                } else {
-                    console.log('⚠️ No profile found for', winner.address);
-                    return winner;
-                }
+                return {
+                    ...winner,
+                    farcasterProfile: profile || undefined
+                };
             } catch (error) {
-                console.error('Error fetching winner profile for', winner.address, ':', error);
+                console.error('Error fetching winner profile:', error);
                 return winner;
             }
         }));
-        console.log('🏆 Finished fetching profiles. Results with profiles:', results.filter(w => w.farcasterProfile).length);
-        return results;
     };
 
     // Function to fetch current user's Farcaster profile
