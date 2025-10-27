@@ -787,7 +787,7 @@ export function useSlotContract(callbacks?: SlotContractCallbacks) {
             console.log('🎰 Getting player spins for:', playerAddress);
 
             const currentBlock = await rpcProviderPrimary.getBlockNumber();
-            
+
             // Always compute fromBlock dynamically to respect 50k block limit
             const fromBlock = Math.max(0, currentBlock - 50000);
             console.log('🎰 Querying from block:', fromBlock, '(current:', currentBlock, ', range:', currentBlock - fromBlock, ')');
@@ -814,7 +814,7 @@ export function useSlotContract(callbacks?: SlotContractCallbacks) {
             requireContract();
 
             const currentBlock = await rpcProviderPrimary.getBlockNumber();
-            
+
             // Always compute fromBlock dynamically to respect 50k block limit
             const fromBlock = Math.max(0, currentBlock - 50000);
             console.log('🎰 Querying winnings from block:', fromBlock, '(current:', currentBlock, ', range:', currentBlock - fromBlock, ')');

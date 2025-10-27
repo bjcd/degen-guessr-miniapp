@@ -73,12 +73,13 @@ export async function POST(req: NextRequest) {
     }
 
     // Build fast lookup by any matched address
-    const byAddr = new Map<string, { fid: number; username: string | null; pfp: string | null }[]>();
+    const byAddr = new Map<string, { fid: number; username: string | null; displayName: string | null; pfp: string | null }[]>();
 
     for (const u of users ?? []) {
       const entry = {
         fid: u.fid,
         username: u.username ?? null,
+        displayName: u.display_name ?? null,
         pfp: u.pfp_url ?? null
       };
 
