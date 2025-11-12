@@ -13,6 +13,8 @@ import { fetchFarcasterProfile, FarcasterProfile, setCurrentUserProfile } from "
 import { useConfetti } from "./hooks/useConfetti";
 import ModeSelectionDialog from "./components/ModeSelectionDialog";
 import CasinoNav from "./components/CasinoNav";
+import { ethers } from "ethers";
+import DegenGuessrABI from "./contracts/DegenGuessr.json";
 
 interface Attempt {
     id: number;
@@ -31,6 +33,16 @@ interface Winner {
 
 const DEGEN_TOKEN = process.env.NEXT_PUBLIC_DEGEN_TOKEN_ADDRESS || '0x4ed4E862860beD51a9570b96d89aF5E1B0Efefed';
 const GUESS_GAME_CONTRACT = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || '0x0000000000000000000000000000000000000000';
+const NFT_CONTRACT_ADDRESS = '0xA6B7cD2362Da01D9f2D18A48838087dd1c9AFa21'; // Base mainnet
+const BASE_RPC_URL = process.env.NEXT_PUBLIC_BASE_RPC_URL || 'https://mainnet.base.org';
+const BASE_RPC_URL_ALT = process.env.NEXT_PUBLIC_BASE_RPC_URL_ALT || 'https://base-rpc.publicnode.com';
+
+// ERC721 ABI (minimal - just balanceOf)
+const ERC721_ABI = [
+    "function balanceOf(address owner) external view returns (uint256)"
+];
+
+// Use full ABI from contract JSON for better compatibility
 
 // Debug logging
 console.log('Environment variables:');
@@ -58,6 +70,7 @@ export default function Home() {
     const [showModeDialog, setShowModeDialog] = useState(false);
     const [currentUserFarcasterProfile, setCurrentUserFarcasterProfile] = useState<FarcasterProfile | null>(null);
     const [winnersToShow, setWinnersToShow] = useState(5);
+    const [isEligibleForFreeGuess, setIsEligibleForFreeGuess] = useState(false);
 
     // Function to fetch current user's Farcaster profile
     const fetchCurrentUserProfile = async (walletAddress: string) => {
@@ -160,6 +173,8 @@ export default function Home() {
                     setPlayerWins(wins);
                     setAllowance(allowanceAmount);
                     setPot(potValue);
+                    // Refresh free guess eligibility after win
+                    await checkFreeGuessEligibility();
                 } catch (error) {
                     console.error('Error reloading data after win:', error);
                 }
@@ -188,6 +203,8 @@ export default function Home() {
                     setPlayerWins(wins);
                     setAllowance(allowanceAmount);
                     setPot(potValue);
+                    // Refresh free guess eligibility after miss
+                    await checkFreeGuessEligibility();
                 } catch (error) {
                     console.error('Error reloading data after miss:', error);
                 }
@@ -202,6 +219,96 @@ export default function Home() {
     });
 
     const isDemoMode = GUESS_GAME_CONTRACT === '0x0000000000000000000000000000000000000000';
+
+    // Check if user is eligible for free guess
+    const checkFreeGuessEligibility = useCallback(async () => {
+        if (isDemoMode || !account || !isConnected) {
+            setIsEligibleForFreeGuess(false);
+            return;
+        }
+
+        try {
+            console.log('🔍 Checking free guess eligibility for:', account);
+            console.log('📋 Contract address:', GUESS_GAME_CONTRACT);
+            
+            // Try primary RPC first, fallback to alt if needed
+            let provider = new ethers.JsonRpcProvider(BASE_RPC_URL);
+            let contract = new ethers.Contract(GUESS_GAME_CONTRACT, DegenGuessrABI, provider);
+
+            // Check if feature is enabled (with error handling for RPC issues)
+            let enabled = false;
+            let nftContractAddr = ethers.ZeroAddress;
+            
+            try {
+                console.log('📞 Calling nftFreeGuessesEnabled() and nftContract()...');
+                [enabled, nftContractAddr] = await Promise.all([
+                    contract.nftFreeGuessesEnabled(),
+                    contract.nftContract()
+                ]);
+                console.log('✅ Got results - enabled:', enabled, 'nftContract:', nftContractAddr);
+            } catch (callError: any) {
+                console.error('❌ Primary RPC call failed:', callError.code, callError.message);
+                // If primary RPC fails, try fallback RPC
+                if (callError.code === 'CALL_EXCEPTION' || callError.message?.includes('missing revert data')) {
+                    console.log('Primary RPC failed, trying fallback RPC...');
+                    try {
+                        provider = new ethers.JsonRpcProvider(BASE_RPC_URL_ALT);
+                        contract = new ethers.Contract(GUESS_GAME_CONTRACT, DegenGuessrABI, provider);
+                        [enabled, nftContractAddr] = await Promise.all([
+                            contract.nftFreeGuessesEnabled(),
+                            contract.nftContract()
+                        ]);
+                    } catch (fallbackError: any) {
+                        console.log('Both RPCs failed. NFT free guess functions may not be available:', fallbackError.message);
+                        setIsEligibleForFreeGuess(false);
+                        return;
+                    }
+                } else if (callError.code === 'UNPREDICTABLE_GAS_LIMIT') {
+                    console.log('NFT free guess functions may not be available on this contract:', callError.message);
+                    setIsEligibleForFreeGuess(false);
+                    return;
+                } else {
+                    throw callError; // Re-throw if it's a different error
+                }
+            }
+
+            if (!enabled || nftContractAddr === ethers.ZeroAddress) {
+                setIsEligibleForFreeGuess(false);
+                return;
+            }
+
+            // Check NFT ownership
+            console.log('🔍 Checking NFT ownership...');
+            const nftContract = new ethers.Contract(nftContractAddr, ERC721_ABI, provider);
+            const nftBalance = await nftContract.balanceOf(account);
+            console.log('📊 NFT balance:', nftBalance.toString());
+
+            if (nftBalance === 0n) {
+                console.log('❌ No NFTs owned');
+                setIsEligibleForFreeGuess(false);
+                return;
+            }
+
+            // Check if 24 hours have passed since last free guess
+            console.log('🔍 Checking last free guess timestamp...');
+            const lastFreeGuess = await contract.lastFreeGuessTimestamp(account);
+            const oneDayInSeconds = 86400;
+            const currentTimestamp = Math.floor(Date.now() / 1000);
+            const timeSinceLastFreeGuess = currentTimestamp - Number(lastFreeGuess);
+            console.log('⏰ Last free guess:', Number(lastFreeGuess), 'Current:', currentTimestamp, 'Time since:', timeSinceLastFreeGuess);
+
+            if (timeSinceLastFreeGuess >= oneDayInSeconds) {
+                console.log('✅ Eligible for free guess!');
+                setIsEligibleForFreeGuess(true);
+            } else {
+                console.log('❌ Cooldown active, time remaining:', oneDayInSeconds - timeSinceLastFreeGuess, 'seconds');
+                setIsEligibleForFreeGuess(false);
+            }
+        } catch (error) {
+            console.error('Error checking free guess eligibility:', error);
+            setIsEligibleForFreeGuess(false);
+        }
+    }, [account, isConnected, isDemoMode]);
 
     // Show mode dialog once per session (not in demo mode)
     useEffect(() => {
@@ -286,6 +393,9 @@ export default function Home() {
                     });
                 }
 
+                // Check free guess eligibility
+                await checkFreeGuessEligibility();
+
                 console.log('✅ User data loaded - Balance:', balance, 'Guesses:', guesses, 'Wins:', wins, 'Allowance:', allowanceAmount);
             } catch (error) {
                 console.error('Error loading user data:', error);
@@ -293,7 +403,7 @@ export default function Home() {
         }, 400);
 
         return () => clearTimeout(handle);
-    }, [isConnected, account, isDemoMode, isFarcasterEnvironment, user]);
+    }, [isConnected, account, isDemoMode, isFarcasterEnvironment, user, checkFreeGuessEligibility]);
 
     // Auto-connect wallet in Farcaster environment
     useEffect(() => {
@@ -401,7 +511,8 @@ export default function Home() {
             return;
         }
 
-        if (tokenBalance < 100) {
+        // Skip token balance check if user has a free guess available
+        if (!isEligibleForFreeGuess && tokenBalance < 100) {
             setLoadingMessage('Insufficient token balance. You need at least 100 tokens to play.');
             setTimeout(() => setLoadingMessage(''), 3000);
             return;
@@ -657,7 +768,7 @@ export default function Home() {
                                 />
                             </div>
 
-                            {!isDemoMode && allowance < 100 && (
+                            {!isDemoMode && !isEligibleForFreeGuess && allowance < 100 && (
                                 <Button
                                     onClick={handleApprove}
                                     className="w-full h-14 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 text-white font-black text-lg transition-all duration-300 rounded-2xl flex items-center justify-center gap-2"
@@ -671,11 +782,19 @@ export default function Home() {
                             <Button
                                 onClick={handleGuess}
                                 className="w-full h-16 bg-gradient-to-r from-primary to-secondary hover:from-primary-glow hover:to-secondary-glow text-white font-black text-xl transition-all duration-300 neon-button rounded-2xl flex items-center justify-center gap-3"
-                                disabled={isWinning || isLoading || (!isDemoMode && allowance < 100)}
+                                disabled={isWinning || isLoading || (!isDemoMode && !isEligibleForFreeGuess && allowance < 100)}
                             >
                                 <Image src="/degen-logo.png" alt="Hat" width={32} height={32} className="w-8 h-8 object-contain" />
                                 <Zap className="w-6 h-6" />
-                                {isWinning ? "PROCESSING..." : isDemoMode ? "GUESS FOR 100 $DEGEN" : (!isDemoMode && allowance < 100) ? "MAKE GUESS" : "MAKE GUESS"}
+                                {isWinning 
+                                    ? "PROCESSING..." 
+                                    : isDemoMode 
+                                        ? "GUESS FOR 100 $DEGEN" 
+                                        : isEligibleForFreeGuess 
+                                            ? "GUESS FOR FREE" 
+                                            : (!isDemoMode && allowance < 100) 
+                                                ? "MAKE GUESS" 
+                                                : "MAKE GUESS"}
                                 <Zap className="w-6 h-6" />
                             </Button>
 

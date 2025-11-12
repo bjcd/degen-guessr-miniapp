@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {VRFConsumerBaseV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/VRFConsumerBaseV2Plus.sol";
 import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
 
@@ -31,6 +32,12 @@ contract DegenGuessr is VRFConsumerBaseV2Plus, ReentrancyGuard, Pausable {
     address public immutable treasury;
     uint256 public pot;
     uint8 public immutable tokenDecimals; // Store token decimals
+
+    // NFT free guess feature
+    IERC721 public nftContract;
+    bool public nftFreeGuessesEnabled;
+    mapping(address => uint256) public lastFreeGuessTimestamp;
+    uint256 private constant ONE_DAY = 86400; // 24 hours in seconds
 
     // Struct for storing guess data
     struct Guess {
@@ -64,6 +71,9 @@ contract DegenGuessr is VRFConsumerBaseV2Plus, ReentrancyGuard, Pausable {
         uint256 potAtTime
     );
     event PotUpdated(uint256 newPot);
+    event FreeGuessUsed(address indexed player, uint256 timestamp);
+    event NftFreeGuessesToggled(bool enabled);
+    event NftContractUpdated(address indexed nftContract);
 
     constructor(
         address _token,
@@ -90,22 +100,40 @@ contract DegenGuessr is VRFConsumerBaseV2Plus, ReentrancyGuard, Pausable {
             "Invalid guess range"
         );
 
-        uint256 guessCost = GUESS_COST_UNITS * (10 ** tokenDecimals);
-        require(
-            token.balanceOf(msg.sender) >= guessCost,
-            "Insufficient token balance"
-        );
+        bool isFreeGuess = false;
 
-        // ✅ Changed: safeTransferFrom instead of transferFrom
-        token.safeTransferFrom(msg.sender, address(this), guessCost);
+        // Check if NFT free guess is available
+        if (nftFreeGuessesEnabled && address(nftContract) != address(0)) {
+            // Check if player owns at least one NFT
+            if (nftContract.balanceOf(msg.sender) > 0) {
+                // Check if 24 hours have passed since last free guess
+                if (block.timestamp >= lastFreeGuessTimestamp[msg.sender] + ONE_DAY) {
+                    isFreeGuess = true;
+                    lastFreeGuessTimestamp[msg.sender] = block.timestamp;
+                    emit FreeGuessUsed(msg.sender, block.timestamp);
+                }
+            }
+        }
 
-        // Distribute tokens internally
-        uint256 potShare = POT_SHARE_UNITS * (10 ** tokenDecimals);
-        uint256 treasuryShare = TREASURY_SHARE_UNITS * (10 ** tokenDecimals);
+        // If not eligible for free guess, process payment
+        if (!isFreeGuess) {
+            uint256 guessCost = GUESS_COST_UNITS * (10 ** tokenDecimals);
+            require(
+                token.balanceOf(msg.sender) >= guessCost,
+                "Insufficient token balance"
+            );
 
-        pot += potShare;
-        // ✅ Changed: safeTransfer instead of transfer
-        token.safeTransfer(treasury, treasuryShare);
+            // ✅ Changed: safeTransferFrom instead of transferFrom
+            token.safeTransferFrom(msg.sender, address(this), guessCost);
+
+            // Distribute tokens internally
+            uint256 potShare = POT_SHARE_UNITS * (10 ** tokenDecimals);
+            uint256 treasuryShare = TREASURY_SHARE_UNITS * (10 ** tokenDecimals);
+
+            pot += potShare;
+            // ✅ Changed: safeTransfer instead of transfer
+            token.safeTransfer(treasury, treasuryShare);
+        }
 
         // Request randomness (VRF v2.5 Plus subscription; pay with LINK, not native)
         VRFV2PlusClient.RandomWordsRequest memory req = VRFV2PlusClient
@@ -196,6 +224,35 @@ contract DegenGuessr is VRFConsumerBaseV2Plus, ReentrancyGuard, Pausable {
 
     function unpause() external onlyOwner {
         _unpause();
+    }
+
+    // NFT free guess admin functions
+
+    /**
+     * @dev Set the NFT contract address for free guess eligibility
+     * @param _nftContract Address of the ERC721 NFT contract
+     */
+    function setNftContract(address _nftContract) external onlyOwner {
+        nftContract = IERC721(_nftContract);
+        emit NftContractUpdated(_nftContract);
+    }
+
+    /**
+     * @dev Toggle the NFT free guess feature on/off
+     * @param _enabled True to enable, false to disable
+     */
+    function setNftFreeGuessesEnabled(bool _enabled) external onlyOwner {
+        nftFreeGuessesEnabled = _enabled;
+        emit NftFreeGuessesToggled(_enabled);
+    }
+
+    /**
+     * @dev Emergency function to reset a user's free guess timestamp
+     * @param user Address of the user
+     * @param timestamp New timestamp value (0 to reset)
+     */
+    function setLastFreeGuessTimestamp(address user, uint256 timestamp) external onlyOwner {
+        lastFreeGuessTimestamp[user] = timestamp;
     }
 
     // ✅ IMPROVED: Protected emergency withdrawal
