@@ -28,6 +28,7 @@ type SpinResult @entity(immutable: true) {
   category: BigInt!
   payout: BigInt!
   potAfter: BigInt!
+  contractAddress: Bytes!
 }
 
 type SlotPlayerStats @entity(immutable: false) {

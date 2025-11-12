@@ -177,11 +177,11 @@ export async function getWinnersByPlayer(player: string, limit: number = 10): Pr
 }
 
 // Batched query to fetch all public data in one request
-export async function getPublicData(limit: number = 10): Promise<{
+export async function getPublicData(limit: number = 10, contractAddress?: string): Promise<{
   wins: Win[];
   gameStats: GameStats | null;
 }> {
-  const cacheKey = `public-data-${limit}`;
+  const cacheKey = `public-data-${limit}-${contractAddress || 'all'}`;
   const cached = winnersCache.get(cacheKey);
 
   if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
@@ -189,12 +189,16 @@ export async function getPublicData(limit: number = 10): Promise<{
     return cached.data as any;
   }
 
+  // Build where clause if contract address is provided
+  const whereClause = contractAddress ? `where: { contractAddress: "${contractAddress.toLowerCase()}" }` : '';
+
   const query = `
     query GetPublicData($limit: Int!) {
       wins(
         first: $limit
         orderBy: timestamp
         orderDirection: desc
+        ${whereClause}
       ) {
         id
         tx
@@ -217,8 +221,15 @@ export async function getPublicData(limit: number = 10): Promise<{
 
   try {
     const data = await makeGraphQLRequest(query, { limit });
+    let wins = data?.wins || [];
+    
+    // If subgraph doesn't support filtering, filter client-side
+    if (contractAddress && wins.length > 0) {
+      wins = wins.filter((win: Win) => win.contractAddress?.toLowerCase() === contractAddress.toLowerCase());
+    }
+    
     const result = {
-      wins: data?.wins || [],
+      wins,
       gameStats: data?.gameStats || null
     };
 

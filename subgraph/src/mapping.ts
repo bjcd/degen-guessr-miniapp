@@ -57,6 +57,7 @@ export function handleSpinResult(event: SpinResultEvent): void {
     spinResult.category = BigInt.fromI32(event.params.category)
     spinResult.payout = event.params.payout
     spinResult.potAfter = event.params.potAfter
+    spinResult.contractAddress = event.address
     spinResult.save()
 
     // Update player stats

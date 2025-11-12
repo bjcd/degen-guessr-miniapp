@@ -14,6 +14,7 @@ interface SpinResult {
     category: string;
     payout: string;
     potAfter: string;
+    contractAddress?: string;
 }
 
 interface SlotPlayerStats {
@@ -65,7 +66,13 @@ async function makeGraphQLRequest(query: string, variables: any = {}) {
     }
 }
 
-export async function getRecentSlotWinners(limit: number = 1000, skip: number = 0): Promise<SpinResult[]> {
+export async function getRecentSlotWinners(limit: number = 1000, skip: number = 0, contractAddress?: string): Promise<SpinResult[]> {
+    // Build where clause - include contract address if provided
+    let whereClause = 'payout_gt: "0"';
+    if (contractAddress) {
+        whereClause += `, contractAddress: "${contractAddress.toLowerCase()}"`;
+    }
+
     const query = `
         query GetRecentSlotWinners($limit: Int!, $skip: Int!) {
             spinResults(
@@ -73,7 +80,7 @@ export async function getRecentSlotWinners(limit: number = 1000, skip: number = 
                 skip: $skip
                 orderBy: timestamp
                 orderDirection: desc
-                where: { payout_gt: "0" }
+                where: { ${whereClause} }
             ) {
                 id
                 tx
@@ -84,13 +91,22 @@ export async function getRecentSlotWinners(limit: number = 1000, skip: number = 
                 category
                 payout
                 potAfter
+                contractAddress
             }
         }
     `;
 
     try {
         const data = await makeGraphQLRequest(query, { limit, skip });
-        const winners = data?.spinResults || [];
+        let winners = data?.spinResults || [];
+        
+        // If subgraph doesn't support filtering, filter client-side
+        if (contractAddress && winners.length > 0) {
+            winners = winners.filter((winner: SpinResult) => 
+                (winner as any).contractAddress?.toLowerCase() === contractAddress.toLowerCase()
+            );
+        }
+        
         console.log('🏆 Recent winners from subgraph:', winners.length, 'winners');
         return winners;
     } catch (error) {

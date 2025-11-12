@@ -8,8 +8,7 @@ import {
   store,
   Bytes,
   BigInt,
-  BigDecimal,
-  Int8,
+  BigDecimal
 } from "@graphprotocol/graph-ts";
 
 export class Win extends Entity {
@@ -24,7 +23,7 @@ export class Win extends Entity {
     if (id) {
       assert(
         id.kind == ValueKind.STRING,
-        `Entities of type Win must have an ID of type String but the id '${id.displayData()}' is of type ${id.displayKind()}`,
+        `Entities of type Win must have an ID of type String but the id '${id.displayData()}' is of type ${id.displayKind()}`
       );
       store.set("Win", id.toString(), this);
     }
@@ -181,7 +180,7 @@ export class GameStats extends Entity {
     if (id) {
       assert(
         id.kind == ValueKind.STRING,
-        `Entities of type GameStats must have an ID of type String but the id '${id.displayData()}' is of type ${id.displayKind()}`,
+        `Entities of type GameStats must have an ID of type String but the id '${id.displayData()}' is of type ${id.displayKind()}`
       );
       store.set("GameStats", id.toString(), this);
     }
@@ -260,7 +259,7 @@ export class SpinResult extends Entity {
     if (id) {
       assert(
         id.kind == ValueKind.STRING,
-        `Entities of type SpinResult must have an ID of type String but the id '${id.displayData()}' is of type ${id.displayKind()}`,
+        `Entities of type SpinResult must have an ID of type String but the id '${id.displayData()}' is of type ${id.displayKind()}`
       );
       store.set("SpinResult", id.toString(), this);
     }
@@ -390,6 +389,19 @@ export class SpinResult extends Entity {
   set potAfter(value: BigInt) {
     this.set("potAfter", Value.fromBigInt(value));
   }
+
+  get contractAddress(): Bytes {
+    let value = this.get("contractAddress");
+    if (!value || value.kind == ValueKind.NULL) {
+      throw new Error("Cannot return null for a required field.");
+    } else {
+      return value.toBytes();
+    }
+  }
+
+  set contractAddress(value: Bytes) {
+    this.set("contractAddress", Value.fromBytes(value));
+  }
 }
 
 export class SlotPlayerStats extends Entity {
@@ -404,7 +416,7 @@ export class SlotPlayerStats extends Entity {
     if (id) {
       assert(
         id.kind == ValueKind.STRING,
-        `Entities of type SlotPlayerStats must have an ID of type String but the id '${id.displayData()}' is of type ${id.displayKind()}`,
+        `Entities of type SlotPlayerStats must have an ID of type String but the id '${id.displayData()}' is of type ${id.displayKind()}`
       );
       store.set("SlotPlayerStats", id.toString(), this);
     }
@@ -412,7 +424,7 @@ export class SlotPlayerStats extends Entity {
 
   static loadInBlock(id: string): SlotPlayerStats | null {
     return changetype<SlotPlayerStats | null>(
-      store.get_in_block("SlotPlayerStats", id),
+      store.get_in_block("SlotPlayerStats", id)
     );
   }
 
@@ -498,7 +510,7 @@ export class SlotGameStats extends Entity {
     if (id) {
       assert(
         id.kind == ValueKind.STRING,
-        `Entities of type SlotGameStats must have an ID of type String but the id '${id.displayData()}' is of type ${id.displayKind()}`,
+        `Entities of type SlotGameStats must have an ID of type String but the id '${id.displayData()}' is of type ${id.displayKind()}`
       );
       store.set("SlotGameStats", id.toString(), this);
     }
@@ -506,7 +518,7 @@ export class SlotGameStats extends Entity {
 
   static loadInBlock(id: string): SlotGameStats | null {
     return changetype<SlotGameStats | null>(
-      store.get_in_block("SlotGameStats", id),
+      store.get_in_block("SlotGameStats", id)
     );
   }
 

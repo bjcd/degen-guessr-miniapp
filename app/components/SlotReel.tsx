@@ -44,8 +44,8 @@ export const SlotReel = ({ spinning, finalIcon, delay = 0, onStop }: SlotReelPro
             if (finalIcon && finalIcon !== 'undefined') {
                 timeoutRef.current = setTimeout(() => {
                     console.log('🎰 Reel stopping with final icon:', finalIcon);
-                    setCurrentIcon(finalIcon);
-                    onStop?.();
+                setCurrentIcon(finalIcon);
+                onStop?.();
                 }, delay);
             }
         }
@@ -59,7 +59,7 @@ export const SlotReel = ({ spinning, finalIcon, delay = 0, onStop }: SlotReelPro
             if (timeoutRef.current) {
                 clearTimeout(timeoutRef.current);
                 timeoutRef.current = null;
-            }
+        }
         };
     }, [spinning, finalIcon, delay, onStop]);
 

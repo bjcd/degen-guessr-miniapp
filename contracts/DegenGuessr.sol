@@ -7,8 +7,12 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import {VRFConsumerBaseV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/VRFConsumerBaseV2Plus.sol";
-import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
+import {
+    VRFConsumerBaseV2Plus
+} from "@chainlink/contracts/src/v0.8/vrf/dev/VRFConsumerBaseV2Plus.sol";
+import {
+    VRFV2PlusClient
+} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
 
 contract DegenGuessr is VRFConsumerBaseV2Plus, ReentrancyGuard, Pausable {
     using SafeERC20 for IERC20;
@@ -107,7 +111,10 @@ contract DegenGuessr is VRFConsumerBaseV2Plus, ReentrancyGuard, Pausable {
             // Check if player owns at least one NFT
             if (nftContract.balanceOf(msg.sender) > 0) {
                 // Check if 24 hours have passed since last free guess
-                if (block.timestamp >= lastFreeGuessTimestamp[msg.sender] + ONE_DAY) {
+                if (
+                    block.timestamp >=
+                    lastFreeGuessTimestamp[msg.sender] + ONE_DAY
+                ) {
                     isFreeGuess = true;
                     lastFreeGuessTimestamp[msg.sender] = block.timestamp;
                     emit FreeGuessUsed(msg.sender, block.timestamp);
@@ -128,7 +135,8 @@ contract DegenGuessr is VRFConsumerBaseV2Plus, ReentrancyGuard, Pausable {
 
             // Distribute tokens internally
             uint256 potShare = POT_SHARE_UNITS * (10 ** tokenDecimals);
-            uint256 treasuryShare = TREASURY_SHARE_UNITS * (10 ** tokenDecimals);
+            uint256 treasuryShare = TREASURY_SHARE_UNITS *
+                (10 ** tokenDecimals);
 
             pot += potShare;
             // ✅ Changed: safeTransfer instead of transfer
@@ -251,7 +259,10 @@ contract DegenGuessr is VRFConsumerBaseV2Plus, ReentrancyGuard, Pausable {
      * @param user Address of the user
      * @param timestamp New timestamp value (0 to reset)
      */
-    function setLastFreeGuessTimestamp(address user, uint256 timestamp) external onlyOwner {
+    function setLastFreeGuessTimestamp(
+        address user,
+        uint256 timestamp
+    ) external onlyOwner {
         lastFreeGuessTimestamp[user] = timestamp;
     }
 

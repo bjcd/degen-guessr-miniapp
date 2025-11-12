@@ -5,6 +5,7 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {VRFConsumerBaseV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/VRFConsumerBaseV2Plus.sol";
 import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
 
@@ -181,6 +182,12 @@ contract DegenSlot is VRFConsumerBaseV2Plus, ReentrancyGuard, Pausable {
     /// @dev Player to pending request mapping (prevents multiple pending requests)
     mapping(address => bool) public hasPendingRequest;
 
+    // NFT free spin feature
+    IERC721 public nftContract;
+    bool public nftFreeSpinsEnabled;
+    mapping(address => uint256) public lastFreeSpinTimestamp;
+    uint256 private constant ONE_WEEK = 604800; // 7 days in seconds
+
     // ============ EVENTS ============
 
     /// @dev Emitted when a spin is initiated
@@ -207,6 +214,15 @@ contract DegenSlot is VRFConsumerBaseV2Plus, ReentrancyGuard, Pausable {
 
     /// @dev Emitted when a stuck pending request is cleared
     event StuckRequestCleared(address indexed player);
+
+    /// @dev Emitted when a free spin is used
+    event FreeSpinUsed(address indexed player, uint256 timestamp);
+
+    /// @dev Emitted when NFT free spins are toggled
+    event NftFreeSpinsToggled(bool enabled);
+
+    /// @dev Emitted when NFT contract is updated
+    event NftContractUpdated(address indexed nftContract);
 
     // ============ CONSTRUCTOR ============
 
@@ -240,19 +256,40 @@ contract DegenSlot is VRFConsumerBaseV2Plus, ReentrancyGuard, Pausable {
 
     /**
      * @dev Initiate a spin by paying cost and requesting VRF
-     * @notice Player must have approved this contract to spend $DEGEN tokens
+     * @notice Player must have approved this contract to spend $DEGEN tokens (unless using free spin)
      */
     function spin() external nonReentrant whenNotPaused {
         if (hasPendingRequest[msg.sender]) {
             revert Pending();
         }
 
-        // Transfer cost from player
-        degenToken.safeTransferFrom(msg.sender, address(this), COST_PER_SPIN);
+        bool isFreeSpin = false;
 
-        // Update pot and treasury
-        pot += POT_ADD_PER_SPIN;
-        treasuryBalance += TREASURY_ADD_PER_SPIN;
+        // Check if NFT free spin is available
+        if (nftFreeSpinsEnabled && address(nftContract) != address(0)) {
+            // Check if player owns at least one NFT
+            if (nftContract.balanceOf(msg.sender) > 0) {
+                // Check if 7 days have passed since last free spin
+                if (
+                    block.timestamp >=
+                    lastFreeSpinTimestamp[msg.sender] + ONE_WEEK
+                ) {
+                    isFreeSpin = true;
+                    lastFreeSpinTimestamp[msg.sender] = block.timestamp;
+                    emit FreeSpinUsed(msg.sender, block.timestamp);
+                }
+            }
+        }
+
+        // If not eligible for free spin, process payment
+        if (!isFreeSpin) {
+            // Transfer cost from player
+            degenToken.safeTransferFrom(msg.sender, address(this), COST_PER_SPIN);
+
+            // Update pot and treasury
+            pot += POT_ADD_PER_SPIN;
+            treasuryBalance += TREASURY_ADD_PER_SPIN;
+        }
 
         // Safety guard: ensure pot can cover largest fixed payout
         if (pot < MIN_POT_AFTER_TOPUP) {
@@ -408,6 +445,33 @@ contract DegenSlot is VRFConsumerBaseV2Plus, ReentrancyGuard, Pausable {
 
         hasPendingRequest[player] = false;
         emit StuckRequestCleared(player);
+    }
+
+    /**
+     * @dev Set the NFT contract for free spins
+     * @param _nftContract Address of the NFT contract
+     */
+    function setNftContract(address _nftContract) external onlyOwner {
+        nftContract = IERC721(_nftContract);
+        emit NftContractUpdated(_nftContract);
+    }
+
+    /**
+     * @dev Toggle NFT free spins feature
+     * @param _enabled Whether to enable or disable free spins
+     */
+    function setNftFreeSpinsEnabled(bool _enabled) external onlyOwner {
+        nftFreeSpinsEnabled = _enabled;
+        emit NftFreeSpinsToggled(_enabled);
+    }
+
+    /**
+     * @dev Set last free spin timestamp for a player (admin function for testing/emergency)
+     * @param player The player address
+     * @param timestamp The timestamp to set
+     */
+    function setLastFreeSpinTimestamp(address player, uint256 timestamp) external onlyOwner {
+        lastFreeSpinTimestamp[player] = timestamp;
     }
 
     // ============ VIEW FUNCTIONS ============

@@ -667,8 +667,10 @@ export function useContract(callbacks?: ContractCallbacks, contractAddress?: str
             }
 
             // Use batched query to get both winners and stats
-            const { wins: graphWins } = await getPublicData(limit);
-            console.log('Found', graphWins.length, 'winners from The Graph');
+            // Pass contract address to filter winners for this specific contract
+            const contractAddr = contractAddress || CONTRACT_ADDRESS;
+            const { wins: graphWins } = await getPublicData(limit, contractAddr);
+            console.log('Found', graphWins.length, 'winners from The Graph for contract:', contractAddr);
 
             // Convert GraphQL results to our format
             const winners = graphWins.map((win: GraphWin) => ({

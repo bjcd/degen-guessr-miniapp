@@ -13,6 +13,8 @@ import { fetchFarcasterProfile, FarcasterProfile, setCurrentUserProfile } from "
 import { getRecentSlotWinners, getSlotPlayerStats, getPlayerAllSpins, type SpinResult as GraphSpinResult } from "../lib/graphql-slot";
 import { sdk } from '@farcaster/miniapp-sdk';
 import CasinoNav from '../components/CasinoNav';
+import { ethers } from "ethers";
+import DegenSlotABI from "../contracts/DegenSlot.json";
 
 interface SpinResult {
     id: number;
@@ -40,6 +42,16 @@ interface LeaderboardEntry {
 const SLOT_ICONS = ["🎰", "💎", "⭐", "👑", "🍒", "🔔", "💰", "🎲"];
 const HAT_ICON = "🎩";
 
+const SLOT_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_SLOT_CONTRACT_ADDRESS || '0xd868b4CA6D07010fcd26Dcc73f9A04CCEBC8c261';
+const NFT_CONTRACT_ADDRESS = '0xA6B7cD2362Da01D9f2D18A48838087dd1c9AFa21'; // Base mainnet
+const BASE_RPC_URL = process.env.NEXT_PUBLIC_BASE_RPC_URL || 'https://mainnet.base.org';
+const BASE_RPC_URL_ALT = process.env.NEXT_PUBLIC_BASE_RPC_URL_ALT || 'https://base-rpc.publicnode.com';
+
+// ERC721 ABI (minimal - just balanceOf)
+const ERC721_ABI = [
+    "function balanceOf(address owner) external view returns (uint256)"
+];
+
 const Index = () => {
     const { isReady, user, signIn, isFarcasterEnvironment, addToFarcaster, isMiniAppAdded } = useFarcaster();
     const [pot, setPot] = useState(0);
@@ -50,6 +62,7 @@ const Index = () => {
     const spinningRef = useRef(false);
     const refetchPlayerStatsRef = useRef<((playerAccount: string) => Promise<void>) | null>(null);
     const accountRef = useRef<string | null>(null);
+    const checkFreeSpinEligibilityRef = useRef<(() => Promise<void>) | null>(null);
 
     const [lastSpins, setLastSpins] = useState<SpinResult[]>([]);
     const [totalSpins, setTotalSpins] = useState(0);
@@ -78,6 +91,7 @@ const Index = () => {
     const [leaderboard] = useState<LeaderboardEntry[]>([]);
     const [countdown, setCountdown] = useState(isFarcasterEnvironment ? 12 : 10);
     const [lastWinAmount, setLastWinAmount] = useState<number | null>(null);
+    const [isEligibleForFreeSpin, setIsEligibleForFreeSpin] = useState(false);
 
     const { triggerConfetti } = useConfetti();
 
@@ -291,6 +305,10 @@ https://www.degenguessr.xyz`.trim();
                 } else {
                     console.error('❌ refetchPlayerStats is not a function!');
                 }
+                // Refresh free spin eligibility after win
+                if (checkFreeSpinEligibilityRef.current) {
+                    checkFreeSpinEligibilityRef.current();
+                }
             }
         } else {
             // Record the spin
@@ -314,6 +332,10 @@ https://www.degenguessr.xyz`.trim();
                     refetchPlayerStatsRef.current(accountRef.current);
                 } else {
                     console.error('❌ refetchPlayerStats is not a function!');
+                }
+                // Refresh free spin eligibility after no-win
+                if (checkFreeSpinEligibilityRef.current) {
+                    checkFreeSpinEligibilityRef.current();
                 }
             }
         }
@@ -344,6 +366,101 @@ https://www.degenguessr.xyz`.trim();
         onSpinResult,
         onError
     });
+
+    // Check if user is eligible for free spin (must be after useSlotContract to access account)
+    const checkFreeSpinEligibility = useCallback(async () => {
+        if (!account || !isConnected) {
+            setIsEligibleForFreeSpin(false);
+            return;
+        }
+
+        try {
+            console.log('🔍 Checking free spin eligibility for:', account);
+            console.log('📋 Contract address:', SLOT_CONTRACT_ADDRESS);
+
+            // Try primary RPC first, fallback to alt if needed
+            let provider = new ethers.JsonRpcProvider(BASE_RPC_URL);
+            let contract = new ethers.Contract(SLOT_CONTRACT_ADDRESS, DegenSlotABI, provider);
+
+            // Check if feature is enabled (with error handling for RPC issues)
+            let enabled = false;
+            let nftContractAddr = ethers.ZeroAddress;
+
+            try {
+                console.log('📞 Calling nftFreeSpinsEnabled() and nftContract()...');
+                [enabled, nftContractAddr] = await Promise.all([
+                    contract.nftFreeSpinsEnabled(),
+                    contract.nftContract()
+                ]);
+                console.log('✅ Got results - enabled:', enabled, 'nftContract:', nftContractAddr);
+            } catch (callError: any) {
+                console.error('❌ Primary RPC call failed:', callError.code, callError.message);
+                // If primary RPC fails, try fallback RPC
+                if (callError.code === 'CALL_EXCEPTION' || callError.message?.includes('missing revert data')) {
+                    console.log('Primary RPC failed, trying fallback RPC...');
+                    try {
+                        provider = new ethers.JsonRpcProvider(BASE_RPC_URL_ALT);
+                        contract = new ethers.Contract(SLOT_CONTRACT_ADDRESS, DegenSlotABI, provider);
+                        [enabled, nftContractAddr] = await Promise.all([
+                            contract.nftFreeSpinsEnabled(),
+                            contract.nftContract()
+                        ]);
+                    } catch (fallbackError: any) {
+                        console.log('Both RPCs failed. NFT free spin functions may not be available:', fallbackError.message);
+                        setIsEligibleForFreeSpin(false);
+                        return;
+                    }
+                } else if (callError.code === 'UNPREDICTABLE_GAS_LIMIT') {
+                    console.log('NFT free spin functions may not be available on this contract:', callError.message);
+                    setIsEligibleForFreeSpin(false);
+                    return;
+                } else {
+                    throw callError; // Re-throw if it's a different error
+                }
+            }
+
+            if (!enabled || nftContractAddr === ethers.ZeroAddress) {
+                setIsEligibleForFreeSpin(false);
+                return;
+            }
+
+            // Check NFT ownership
+            console.log('🔍 Checking NFT ownership...');
+            const nftContract = new ethers.Contract(nftContractAddr, ERC721_ABI, provider);
+            const nftBalance = await nftContract.balanceOf(account);
+            console.log('📊 NFT balance:', nftBalance.toString());
+
+            if (nftBalance === 0n) {
+                console.log('❌ No NFTs owned');
+                setIsEligibleForFreeSpin(false);
+                return;
+            }
+
+            // Check if 7 days have passed since last free spin
+            console.log('🔍 Checking last free spin timestamp...');
+            const lastFreeSpin = await contract.lastFreeSpinTimestamp(account);
+            const oneWeekInSeconds = 604800; // 7 days
+            const currentTimestamp = Math.floor(Date.now() / 1000);
+            const timeSinceLastFreeSpin = currentTimestamp - Number(lastFreeSpin);
+            console.log('⏰ Last free spin:', Number(lastFreeSpin), 'Current:', currentTimestamp, 'Time since:', timeSinceLastFreeSpin);
+
+            if (timeSinceLastFreeSpin >= oneWeekInSeconds) {
+                console.log('✅ Eligible for free spin!');
+                setIsEligibleForFreeSpin(true);
+            } else {
+                console.log('❌ Cooldown active, time remaining:', oneWeekInSeconds - timeSinceLastFreeSpin, 'seconds');
+                setIsEligibleForFreeSpin(false);
+            }
+        } catch (error) {
+            console.error('Error checking free spin eligibility:', error);
+            setIsEligibleForFreeSpin(false);
+        }
+    }, [account, isConnected]);
+
+    // Store checkFreeSpinEligibility in ref so it can be called from onSpinResult
+    useEffect(() => {
+        checkFreeSpinEligibilityRef.current = checkFreeSpinEligibility;
+    }, [checkFreeSpinEligibility]);
 
     // Memoized function to refetch player stats after VRF result
     // Hybrid approach: RPC for latest spin data (instant) + subgraph for historical (fallback)
@@ -425,7 +542,7 @@ https://www.degenguessr.xyz`.trim();
                 getPot(),
                 fetchGameConstants(),
                 fetchPayouts(),
-                getRecentSlotWinners(1000, 0).catch(() => [])
+                getRecentSlotWinners(1000, 0, SLOT_CONTRACT_ADDRESS).catch(() => [])
             ]);
 
             setPot(potValue);
@@ -528,13 +645,16 @@ https://www.degenguessr.xyz`.trim();
                     setAllowance(allowanceValue);
                     setTotalSpins(spinsValue);
                     setTotalWinnings(winningsValue);
+
+                    // Check free spin eligibility after loading user data
+                    await checkFreeSpinEligibility();
                 } catch (error) {
                     console.error('Error loading user data:', error);
                 }
             };
             loadUserData();
         }
-    }, [account]);
+    }, [account, checkFreeSpinEligibility]);
 
     // Auto-connect wallet in Farcaster environment
     useEffect(() => {
@@ -583,16 +703,19 @@ https://www.degenguessr.xyz`.trim();
     const handleSpin = async () => {
         if (spinning || !isConnected) return;
 
-        // Check if user has enough balance
-        if (balance < gameConstants.costPerSpin) {
-            alert(`Insufficient balance! You need ${gameConstants.costPerSpin} $DEGEN to spin.`);
-            return;
-        }
+        // Skip balance/allowance checks if eligible for free spin
+        if (!isEligibleForFreeSpin) {
+            // Check if user has enough balance
+            if (balance < gameConstants.costPerSpin) {
+                alert(`Insufficient balance! You need ${gameConstants.costPerSpin} $DEGEN to spin.`);
+                return;
+            }
 
-        // Check if user has enough allowance
-        if (allowance < 100) {
-            alert(`Insufficient allowance! Please approve at least 100 $DEGEN first.`);
-            return;
+            // Check if user has enough allowance
+            if (allowance < 100) {
+                alert(`Insufficient allowance! Please approve at least 100 $DEGEN first.`);
+                return;
+            }
         }
 
         console.log('🎯 Starting spin - setting spinning to true');
@@ -821,7 +944,7 @@ https://www.degenguessr.xyz`.trim();
                         ) : (
                             <>
                                 {/* Approval Button */}
-                                {(account && allowance < 110 && gameConstants.costPerSpin > 0) && (
+                                {(account && allowance < 110 && gameConstants.costPerSpin > 0 && !isEligibleForFreeSpin) && (
                                     <Button
                                         onClick={handleApprove}
                                         disabled={isLoading}
@@ -855,7 +978,9 @@ https://www.degenguessr.xyz`.trim();
                                         ? "SPINNING..."
                                         : countdown > 0
                                             ? `PLAY IN ${countdown}...`
-                                            : `SPIN FOR ${gameConstants.costPerSpin} $DEGEN`}
+                                            : isEligibleForFreeSpin
+                                                ? "SPIN FOR FREE"
+                                                : `SPIN FOR ${gameConstants.costPerSpin} $DEGEN`}
                                     <Zap className="w-6 h-6" />
                                 </Button>
                             </>

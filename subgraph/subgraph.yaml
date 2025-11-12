@@ -66,3 +66,46 @@ dataSources:
         - event: SpinResult(indexed address,uint16,uint8,uint256,uint256)
           handler: handleSpinResult
       file: ./src/mapping.ts
+  - kind: ethereum
+    name: DegenGuessrNew
+    network: base
+    source:
+      address: "0x8Ba9e320d26fd5F0EAB41774607E49e2c7184705"
+      abi: DegenGuessr
+      startBlock: 37300000
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Win
+        - GameStats
+      abis:
+        - name: DegenGuessr
+          file: ./abis/DegenGuessr.json
+      eventHandlers:
+        - event: Win(indexed address,uint8,uint8,uint256)
+          handler: handleWin
+      file: ./src/mapping.ts
+  - kind: ethereum
+    name: DegenSlotNew
+    network: base
+    source:
+      address: "0xd868b4CA6D07010fcd26Dcc73f9A04CCEBC8c261"
+      abi: DegenSlot
+      startBlock: 37300000
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - SpinResult
+        - SlotPlayerStats
+        - SlotGameStats
+      abis:
+        - name: DegenSlot
+          file: ./abis/DegenSlot.json
+      eventHandlers:
+        - event: SpinResult(indexed address,uint16,uint8,uint256,uint256)
+          handler: handleSpinResult
+      file: ./src/mapping.ts

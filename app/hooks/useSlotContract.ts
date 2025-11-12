@@ -5,7 +5,7 @@ import { ethers } from 'ethers';
 import DegenSlotABI from '../contracts/DegenSlot.json';
 import { useFarcaster } from '../farcaster-provider';
 
-const SLOT_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_SLOT_CONTRACT_ADDRESS || '0x6285b23b5CbDD84187B15cC1aC23cFC5F659Ac21';
+const SLOT_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_SLOT_CONTRACT_ADDRESS || '0xd868b4CA6D07010fcd26Dcc73f9A04CCEBC8c261';
 const TOKEN_ADDRESS = process.env.NEXT_PUBLIC_DEGEN_TOKEN_ADDRESS || '0x4ed4E862860beD51a9570b96d89aF5E1B0Efefed';
 const BASE_RPC_URL = process.env.NEXT_PUBLIC_BASE_RPC_URL || 'https://mainnet.base.org';
 const BASE_RPC_URL_ALT = process.env.NEXT_PUBLIC_BASE_RPC_URL_ALT || 'https://base-rpc.publicnode.com';
